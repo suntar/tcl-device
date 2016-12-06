@@ -1,0 +1,51 @@
+#!/usr/bin/wish
+
+package require BLT 2.4
+package require GpibLib
+
+set dev [gpib_device capbridge -board 0 -address 28 -timeout 1000]
+global cap cap_u loss loss_u
+
+# SI -- single measurements
+# SH units -- show units
+# units 2  -- set units
+
+############################################################
+
+entry .cap    -textvariable cap
+label .cap_u  -textvariable cap_u -width 3 -text pF
+entry .loss   -textvariable loss
+label .loss_u -textvariable loss_u -width 3
+entry .volt   -textvariable volt
+label .volt_u -width 3 -text V
+entry .aver   -textvariable aver
+label .aver_u -width 3 -text avrg
+
+button .btn -text "Measure" -command "measure"
+
+grid  .cap  .cap_u  -sticky we
+grid  .loss .loss_u -sticky we
+grid  .volt .volt_u -sticky we
+grid  .aver .aver_u -sticky we
+grid  .btn
+
+proc measure {} {
+  global dev cap cap_u loss loss_u
+  set v [regexp -all -inline {\S+} [$dev cmd_read SI] ]
+  set cap    [lindex $v 1]
+  set loss   [lindex $v 4]
+  set loss_u [lindex $v 5]
+}
+
+proc set_volt {v} {
+  global dev volt
+  $dev write "VOLT $v"
+  regexp {([0-9\.]+)} [$dev cmd_read "SH VOLT"] volt
+}
+proc set_aver {v} {
+  global dev aver
+  $dev write "AV $v"
+  regexp {([0-9]+)} [$dev cmd_read "SH AV"] aver
+}
+
+set status idle

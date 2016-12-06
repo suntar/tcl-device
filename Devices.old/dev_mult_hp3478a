@@ -1,0 +1,32 @@
+#!/usr/bin/wish
+
+package require BLT 2.4
+package require GpibLib
+
+set dev [gpib_device hp3478a -board 0 -address 22 -trimright "\r\n"]
+global value
+
+############################################################
+
+
+entry .val -textvariable value
+button .b1 -text "U DC" -command m_udc
+button .b2 -text "U AC" -command m_uac
+button .b3 -text "R 2w" -command m_r2
+button .b4 -text "R 4w" -command m_r4
+button .b5 -text "I DC" -command m_idc
+button .b6 -text "I AC" -command m_iac
+
+proc m_udc {} {global dev value; set value [$dev cmd_read F1RAZ1N5T3]}
+proc m_uac {} {global dev value; set value [$dev cmd_read F2RAZ1N5T3]}
+proc m_r2  {} {global dev value; set value [$dev cmd_read F3RAZ1N5T3]}
+proc m_r4  {} {global dev value; set value [$dev cmd_read F4RAZ1N5T3]}
+proc m_idc {} {global dev value; set value [$dev cmd_read F5RAZ1N5T3]}
+proc m_iac {} {global dev value; set value [$dev cmd_read F6RAZ1N5T3]}
+
+grid  .val  -sticky we -columnspan 2
+grid  .b1 .b2 -sticky we
+grid  .b3 .b4 -sticky we
+grid  .b5 .b6 -sticky we
+
+set status idle

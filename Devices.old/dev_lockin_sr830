@@ -1,0 +1,39 @@
+#!/usr/bin/wish
+
+package require BLT 2.4
+package require GpibLib
+
+set dev [gpib_device sr830 -board 0 -address 6 -trimright "\r\n"]
+global value
+
+############################################################
+
+
+label .labx -text "X"
+label .laby -text "Y"
+label .labf -text "F"
+
+entry .valx -textvariable X
+entry .valy -textvariable Y
+entry .valf -textvariable F
+button .b1 -text "Measure" -command getFXY
+
+proc getFXY {} {
+  global dev X Y F;
+  set ll [regexp -all -inline {[^,]+} [$dev cmd_read "SNAP? 9,1,2"]]
+  set F [lindex $ll 0]
+  set X [lindex $ll 1]
+  set Y [lindex $ll 2]
+  return $ll
+}
+
+proc setF f {
+  global dev
+  $dev write "FREQ $f"
+}
+
+grid  .labx .laby .labf  -sticky we
+grid  .valx .valy .valf
+grid  .b1 -sticky we
+
+set status idle
