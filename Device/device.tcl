@@ -35,7 +35,7 @@ itcl::class Device {
     if {$cn >0} {set name [string range $name [expr $cn+1] end]}
 
     # get device parameters from devices.txt file
-    set fp [open devices.txt]
+    set fp [open /etc/devices.txt]
     while { [gets $fp line] } {
 
       # remove comments

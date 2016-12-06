@@ -18,16 +18,21 @@ TCL packages for my experimental computer
 %setup -q
 
 %build
-%makeinstall
 # build and install tcl packages
-for n in Graphene GrapheneMonitor\
-         ParseOptions-1.0 Prectime-1.1\
-         Daemon Locking-1.1 xBLT GPIB; do
-  [ ! -s "tcl/$n/Makefile" ] || make -C tcl/$n
+for n in Graphene\
+         GrapheneMonitor\
+         ParseOptions-1.0\
+         Prectime-1.1\
+         Daemon\
+         Locking-1.1\
+         xBLT\
+         GPIB\
+         Device; do
+  [ ! -s "$n/Makefile" ] || make -C $n
   mkdir -p %buildroot/%_tcldatadir/$n/
   mkdir -p %buildroot/%_libdir/tcl/
-  install -m644 tcl/$n/*.tcl %buildroot/%_tcldatadir/$n/ ||:
-  install -m644 tcl/$n/*.so  %buildroot/%_libdir/tcl/ ||:
+  install -m644 $n/*.tcl %buildroot/%_tcldatadir/$n/ ||:
+  install -m644 $n/*.so  %buildroot/%_libdir/tcl/ ||:
   sed -i -e 's|%%LIB_DIR%%|%_libdir/tcl/|' %buildroot/%_tcldatadir/$n/pkgIndex.tcl
 done
 
