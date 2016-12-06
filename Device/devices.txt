@@ -1,0 +1,10 @@
+# example of /etc/devices.txt file
+# device  driver          parameters
+#=======================================================================
+lockin0   gpib_prologix   gpib0:8       # SR844 lock-in
+dgen0     lxi_scpi_raw    dgen0         # Keysight 33500B 2-ch generator
+mult0     lxi_scpi_raw    mult0         # Keysight 34461A multimeter
+mult1     lxi_scpi_raw    mult1         # Keysight 34461A multimeter
+ps0       tenma_ps        /dev/ttyACM0  # tenma PS
+osc0      pico4224        ER245/039     # picoscope 4224
+
