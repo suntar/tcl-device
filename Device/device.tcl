@@ -1,6 +1,7 @@
-package provide Device 1.0
+package provide Device 1.1
 package require Itcl
 package require Locking
+package require GpibLib
 
 # Open any device, send scpi command and read response, close device.
 #
@@ -9,7 +10,7 @@ package require Locking
 #  lockin0 cmd *IDN?
 #
 # Information about devices read from devices.txt file:
-# name driver parameters
+# name model driver parameters
 #
 # Supported drivers and parameters:
 #  gpib_prologix <hostname>:<gpib_address> -- gpib device connected
@@ -22,6 +23,7 @@ package require Locking
 itcl::class Device {
   variable dev;    # device handle
   variable name;   # device name
+  variable model;  # device model
   variable drv;    # device driver
   variable pars;   # driver parameters
   variable gpib_addr;   # gpib address (for gpib_prologix driver)
@@ -29,14 +31,15 @@ itcl::class Device {
 
   ####################################################################
   constructor {} {
-    # get device name
+    # get device name (remove tcl namespace from $this)
     set name $this
+    set drv  {}
     set cn [string last ":" $name]
     if {$cn >0} {set name [string range $name [expr $cn+1] end]}
 
     # get device parameters from devices.txt file
     set fp [open /etc/devices.txt]
-    while { [gets $fp line] } {
+    while { [gets $fp line] >= 0 } {
 
       # remove comments
       set cn [string first "#" $line]
@@ -46,11 +49,13 @@ itcl::class Device {
       # split line
       set data [regexp -all -inline {\S+} $line]
       if { [lindex $data 0] == $name } {
-        set drv  [lindex $data 1]
-        set pars [lrange $data 2 end]
+        set model [lindex $data 1]
+        set drv   [lindex $data 2]
+        set pars  [lrange $data 3 end]
         break
       }
     }
+    if { $drv eq "" } { error "Can't find device $name in /etc/devices.txt"}
 
     # open device
     switch $drv {
@@ -70,6 +75,9 @@ itcl::class Device {
        set dev [::open $pars RDWR]
        fconfigure $dev -blocking false  -buffering line
      }
+     gpib {
+       set dev [gpib_device gpib::$name {*}$pars]
+     }
      default {puts "Unknown driver name in devices.txt"}
     }
 
@@ -77,11 +85,19 @@ itcl::class Device {
     set lock [lock_init #auto $name]
   }
 
-  destructor { ::close $dev }
+  destructor {
+    switch $drv {
+      gpib_prologix { ::close $dev}
+      lxi_scpi_raw  { ::close $dev}
+      tenma_ps      { ::close $dev}
+      gpib          { gpib_device delete $dev}
+    }
+  }
+
 
   ####################################################################
   # run command, read response if needed
-  method cmd {c} {
+  method write {c} {
 
     after 1000 {
       puts "Device locking timeout"
@@ -92,30 +108,67 @@ itcl::class Device {
 
     switch $drv {
      gpib_prologix {
-       set a [send_cmd_read $dev "++addr" ]
-       if { $a != $gpib_addr } { send_cmd $dev "++addr $gpib_addr" }
-       set ret [send_cmd_auto $dev $c]
+       puts $dev $c
+       flush $dev
      }
      lxi_scpi_raw {
-       set ret [send_cmd_auto $dev $c]
+       puts $dev $c
+       flush $dev
      }
      tenma_ps {
        # no newline characters, timeouts are important!
        puts -nonewline $dev $c
        flush $dev
-       after 50
-       if {[string index $c end] == "?"} {
-         set ret [read $dev 1024]
-         after 50
-       } else {
-         set ret {}
-       }
+     }
+     gpib {
+       $dev write $c
      }
      default {set ret "Unknown driver name in devices.txt" }
     }
     $lock release
     return $ret
   }
+
+  ####################################################################
+  # run command, read response if needed
+  method cmd_read {c} {
+
+    after 1000 {
+      puts "Device locking timeout"
+      return
+    }
+    $lock wait
+    $lock get
+
+    switch $drv {
+     gpib_prologix {
+       puts $dev $c
+       flush $dev
+       return [read_line_nb $dev 1000]
+     }
+     lxi_scpi_raw {
+       puts $dev $c
+       flush $dev
+       return [read_line_nb $dev 1000]
+     }
+     tenma_ps {
+       # no newline characters, timeouts are important!
+       puts -nonewline $dev $c
+       flush $dev
+       after 50
+       set ret [read $dev 1024]
+     }
+     gpib {
+       return [$dev cmd_read $c]
+     }
+     default {set ret "Unknown driver name in devices.txt" }
+    }
+    $lock release
+    return $ret
+  }
+
+
+
 
   ####################################################################
   ## read a line until \n character or timeout

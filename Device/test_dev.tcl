@@ -1,14 +1,16 @@
 #!/usr/bin/tclsh
 
 lappend auto_path ..
-package require Device 1.0
+package require Device 1.1
 
-Device lockin0
-puts [lockin0 cmd *IDN?]
+#Device lockin0
+#puts [lockin0 cmd *IDN?]
 
-Device dgen0
-puts [dgen0 cmd *IDN?]
+#Device dgen0
+#puts [dgen0 cmd *IDN?]
 
-Device ps0
-puts [ps0 cmd *IDN?]
+#Device ps0
+#puts [ps0 cmd *IDN?]
 
+Device mult_ag
+puts [mult_ag cmd_read "*IDN?"]
