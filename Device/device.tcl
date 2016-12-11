@@ -2,6 +2,7 @@ package provide Device 1.1
 package require Itcl
 package require Locking
 package require GpibLib
+package require Graphene
 
 # Open any device, send scpi command and read response, close device.
 #
@@ -78,6 +79,9 @@ itcl::class Device {
      gpib {
        set dev [gpib_device gpib::$name {*}$pars]
      }
+     graphene {
+       set dev [graphene::open {*}$pars]
+     }
      default {puts "Unknown driver name in devices.txt"}
     }
 
@@ -91,6 +95,7 @@ itcl::class Device {
       lxi_scpi_raw  { ::close $dev}
       tenma_ps      { ::close $dev}
       gpib          { gpib_device delete $dev}
+      graphene      { graphene::close $dev}
     }
   }
 
@@ -120,10 +125,8 @@ itcl::class Device {
        puts -nonewline $dev $c
        flush $dev
      }
-     gpib {
-       $dev write $c
-     }
-     default {set ret "Unknown driver name in devices.txt" }
+     gpib { $dev write $c }
+     default {set ret "write is not supported by driver $drv" }
     }
     $lock release
     return $ret
@@ -161,7 +164,10 @@ itcl::class Device {
      gpib {
        return [$dev cmd_read $c]
      }
-     default {set ret "Unknown driver name in devices.txt" }
+     graphene {
+       return [graphene::cmd $dev $c]
+     }
+     default {set ret "cmd_read is not supported by driver $drv" }
     }
     $lock release
     return $ret

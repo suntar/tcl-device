@@ -7,7 +7,10 @@ mult0     keysight_34461a   lxi_scpi_raw    mult0         # Keysight 34461A mult
 mult1     keysight_34461a   lxi_scpi_raw    mult1         # Keysight 34461A multimeter
 ps0       tenma_72-2550     tenma_ps        /dev/ttyACM0  # tenma PS
 osc0      pico4224          pico_rec        ER245/039     # picoscope 4224
+
 lockin    stanford_sr830    gpib      -board 0 -address 6 -trimright "\r\n"
 mult_ag   agilent_34401a    gpib      -board 0 -address 17 -trimright "\r\n"
 mult_hp   hp_3478a          gpib      -board 0 -address 22 -trimright "\r\n"
 capbr     ah_2500a          gpib      -board 0 -address 28 -timeout 1000
+
+db        graphene          graphene

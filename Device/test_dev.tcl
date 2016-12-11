@@ -12,5 +12,9 @@ package require Device 1.1
 #Device ps0
 #puts [ps0 cmd *IDN?]
 
-Device mult_ag
-puts [mult_ag cmd_read "*IDN?"]
+#Device mult_ag
+#puts [mult_ag cmd_read "*IDN?"]
+
+#Device db
+#db cmd_read "create test1 DOUBLE"
+
