@@ -82,6 +82,10 @@ itcl::class Device {
      graphene {
        set dev [graphene::open {*}$pars]
      }
+     pico_rec {
+       set dev [::open "| pico_rec -d $pars" RDWR]
+       read_line_nb $dev 3000
+     }
      default {puts "Unknown driver name in devices.txt"}
     }
 
@@ -96,6 +100,7 @@ itcl::class Device {
       tenma_ps      { ::close $dev}
       gpib          { gpib_device delete $dev}
       graphene      { graphene::close $dev}
+      pico_rec      { ::close $dev}
     }
   }
 
@@ -110,6 +115,7 @@ itcl::class Device {
     }
     $lock wait
     $lock get
+    set ret {}
 
     switch $drv {
      gpib_prologix {
@@ -126,6 +132,10 @@ itcl::class Device {
        flush $dev
      }
      gpib { $dev write $c }
+     pico_rec {
+       puts $dev $c
+       flush $dev
+     }
      default {set ret "write is not supported by driver $drv" }
     }
     $lock release
@@ -142,17 +152,23 @@ itcl::class Device {
     }
     $lock wait
     $lock get
+    set ret {}
 
     switch $drv {
      gpib_prologix {
        puts $dev $c
        flush $dev
-       return [read_line_nb $dev 1000]
+       set ret [read_line_nb $dev 1000]
      }
      lxi_scpi_raw {
        puts $dev $c
        flush $dev
-       return [read_line_nb $dev 1000]
+       set ret [read_line_nb $dev 1000]
+     }
+     pico_rec {
+       puts $dev $c
+       flush $dev
+       set ret [read_line_nb $dev 1000]
      }
      tenma_ps {
        # no newline characters, timeouts are important!
@@ -162,10 +178,10 @@ itcl::class Device {
        set ret [read $dev 1024]
      }
      gpib {
-       return [$dev cmd_read $c]
+       set ret [$dev cmd_read $c]
      }
      graphene {
-       return [graphene::cmd $dev $c]
+       set ret [graphene::cmd $dev $c]
      }
      default {set ret "cmd_read is not supported by driver $drv" }
     }
@@ -173,6 +189,27 @@ itcl::class Device {
     return $ret
   }
 
+  ####################################################################
+  # run command, read response if needed
+  method read {c} {
+
+    after 1000 {
+      puts "Device locking timeout"
+      return
+    }
+    $lock wait
+    $lock get
+    set ret {}
+
+    switch $drv {
+     pico_rec {
+       set ret [read_line_nb $dev 1000]
+     }
+     default {set ret "read is not supported by driver $drv" }
+    }
+    $lock release
+    return $ret
+  }
 
 
 
