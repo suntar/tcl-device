@@ -1,0 +1,55 @@
+#!/usr/bin/tclsh
+
+lappend auto_path ..
+package require Device 1.1
+
+set DB   db
+set osc  osc0
+set gen  gen0
+
+Device $DB
+#db cmd_read "create fork0 DOUBLE"
+
+set f0 32870
+set cnt 100
+set  dt  1e-5
+
+## prepare generator
+Device $gen
+$gen write "OUTP OFF"
+$gen write "FREQ $f0"
+$gen write "VOLT 10"
+$gen write "BURST:STATE on"
+$gen write "BURST:MODE trig"
+$gen write "BURST:NCYC $cnt"
+$gen write "TRIG:SOURCE BUS"
+$gen write "OUTP ON"
+
+
+## A - trigger, B - signal
+Device $osc
+$osc cmd_read "chan_set A 1 AC 10"
+$osc cmd_read "chan_set B 1 AC 0.05"
+$osc cmd_read "trig_set A 0.1 RISING 0"
+
+puts "Start measurements"
+
+while {1} {
+  set time 5.0
+  set N [expr {int(1.0*$time/$dt)}]
+  set t [clock seconds]
+  $osc cmd_read "block B 1024 $N $dt data/sig$t.dat"
+  $gen write "*TRG"
+  set t0 [clock seconds]
+  puts [$osc read ""]
+
+  exec ~/PROG/pico_osc/ps4224/filters/pico_filter -f pnm data/sig$t.dat | pnmtopng > data/sig$t.png
+  set out [exec ~/PROG/pico_osc/ps4224/filters/pico_filter -f fork data/sig$t.dat ]
+
+  set tau [lindex $out 3]
+  set time [expr {$tau*5}]
+  puts $time
+  $DB cmd_read "put fork0 $out"
+  $DB cmd_read "sync"
+  puts "$t0: $out"
+}

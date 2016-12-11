@@ -18,3 +18,8 @@ package require Device 1.1
 #Device db
 #db cmd_read "create test1 DOUBLE"
 
+Device osc0
+puts [osc0 cmd_read "chan_set"]
+
+
+
