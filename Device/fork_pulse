@@ -1,7 +1,7 @@
 #!/usr/bin/tclsh
 
 lappend auto_path ..
-package require Device 1.1
+package require Device 1.2
 
 set DB   db
 set osc  osc0
@@ -13,12 +13,13 @@ Device $DB
 set f0 32870
 set cnt 100
 set  dt  1e-5
+set volt 10
 
 ## prepare generator
 Device $gen
 $gen write "OUTP OFF"
 $gen write "FREQ $f0"
-$gen write "VOLT 10"
+$gen write "VOLT $volt"
 $gen write "BURST:STATE on"
 $gen write "BURST:MODE trig"
 $gen write "BURST:NCYC $cnt"
@@ -34,17 +35,19 @@ $osc cmd_read "trig_set A 0.1 RISING 0"
 
 puts "Start measurements"
 
+ set time 5.0
 while {1} {
-  set time 5.0
   set N [expr {int(1.0*$time/$dt)}]
   set t [clock seconds]
-  $osc cmd_read "block B 1024 $N $dt data/sig$t.dat"
+  $osc cmd_read "block B 1024 $N $dt data/sig.dat"
   $gen write "*TRG"
   set t0 [clock seconds]
-  puts [$osc read ""]
+  $osc read ""
 
-  exec ~/PROG/pico_osc/ps4224/filters/pico_filter -f pnm data/sig$t.dat | pnmtopng > data/sig$t.png
-  set out [exec ~/PROG/pico_osc/ps4224/filters/pico_filter -f fork data/sig$t.dat ]
+  set del [expr {1.2*$cnt/$f0}]
+  exec pico_filter -f pnm data/sig.dat | pnmtopng > data/sig.png
+  set out [exec pico_filter -T $del -F 30000 -G 34000 -f fork data/sig.dat ]
+  exec pico_filter -w 8192 -f sfft_pnm -T $del -F 30000 -G 34000 data/sig.dat | pnmtopng > data/sig_fft.png
 
   set tau [lindex $out 3]
   set time [expr {$tau*5}]
