@@ -1,13 +1,13 @@
 #!/usr/bin/tclsh
 
 lappend auto_path ..
-package require ParseOptions
+package require ParseOptions 2.0
 
 proc myprog {args} {
   set parsetable \
-    [list {-f -format} fmt  {} \
-          {-d -descr}  desc {} \
-          -color       color red]
+    [list {-f -format} fmt  {} {format}\
+          {-d -descr}  desc {} {description}\
+          -color       color red {color}]
   if {[catch {parse_options "myprog" \
       $args $parsetable} err]} { error $err }
 

@@ -1,5 +1,5 @@
 package provide Graphene 1.0
-package require ParseOptions 1.0
+package require ParseOptions 2.0
 
 ## Graphene database interface
 ##
@@ -26,8 +26,8 @@ namespace eval graphene {
 proc open {args} {
 
   set opts {
-    -ssh_addr ssh_addr {}
-    -db_path  db_path  {}
+    -ssh_addr ssh_addr {} {address for ssh connection}
+    -db_path  db_path  {} {database path}
   }
   if {[catch {parse_options "graphene::open" \
       $args $opts} err]} { error $err }
