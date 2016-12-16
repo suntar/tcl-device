@@ -1,8 +1,6 @@
-package provide Device 1.1
+package provide Device 1.2
 package require Itcl
 package require Locking
-
-source drivers.tcl
 
 # Open any device, send command, read response, close device.
 #

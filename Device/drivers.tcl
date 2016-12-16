@@ -3,9 +3,6 @@
 ## but only know how to open/close connection and read/write commands
 
 package require Itcl
-package require GpibLib
-package require Graphene
-
 
 namespace eval conn_drivers {
 
@@ -116,7 +113,10 @@ itcl::class lxi_scpi_raw {
 # parameters same is in the GpibLib
 itcl::class gpib {
   variable dev
-  constructor {pars} { set dev [gpib_device gpib::$name {*}$pars] }
+  constructor {pars} {
+    package require GpibLib
+    set dev [gpib_device gpib::$name {*}$pars]
+  }
   destructor { gpib_device delete $dev }
   method write {msg} { $dev write $msg }
   method read {} { return [$dev read ] }
@@ -131,7 +131,10 @@ itcl::class gpib {
 # TODO! - do not use graphene package
 itcl::class graphene {
   variable dev
-  constructor {pars} { set dev [::graphene::open {*}$pars] }
+  constructor {pars} {
+    package require Graphene
+    set dev [::graphene::open {*}$pars]
+  }
   destructor { ::graphene::close $dev }
   method cmd {msg} { return [::graphene::cmd $dev $msg] }
 }
