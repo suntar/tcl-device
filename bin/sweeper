@@ -1,0 +1,37 @@
+#!/usr/bin/tclsh
+
+# current sweeper
+
+lappend auto_path ..
+
+package require Device 1.2
+package require ParseOptions 2.0
+
+#############################################################
+## Device model drivers
+itcl::class test_dev {
+}
+
+#############################################################
+# parse options
+set options \
+  [list {-p -ps_dev} ps_dev   {ps0}    {power supply device}\
+        {-d -db_dev} db_dev   {}       {database device (can be empty)}\
+        {-n -db_name} db_name {sweep}  {database name}]
+if {[catch {parse_options "sweeper" \
+  $argv $options} err]} { error "Error: $err"}
+
+# We need non-empty ps_dev and db_name (if db_dev is not empty).
+if {$ps_dev  == {} } { error "Error: -ps_dev option is empty" }
+if {$db_name != {} && $db_name == {} } { error "Error: -db_name option is empty" }
+
+
+# open devices
+if {$db_dev != {} } { Device $db_dev }
+Device $ps_dev
+
+# main loop: read stdin, process commands, send answers
+while ({read stdin line] >= 0} {
+  set cmd [lidex $line 0]
+  puts $cmd
+}
