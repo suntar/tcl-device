@@ -111,4 +111,6 @@ itcl::class Device {
     $lock release
   }
 
+  method get_model {} {return $model}
+
 }

@@ -17,4 +17,4 @@ gen0      agilent_33511b    gpib            -board 0 -address 16 -trimright "\r\
 db        graphene          graphene        graphene interactive
 db_local  graphene          graphene        graphene -d . interactive
 fork0     fork_pulse        fork_pulse      -gen gen0 -osc osc0
-test_dev  test_dev          test_dev        ""
+test      test              test_dev        ""

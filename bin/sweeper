@@ -30,7 +30,8 @@ itcl::class CurrentSupplyDevice {
   constructor {} {
     global ps_dev
     set rh {}
-    set dev [current_supply_devices::$ps_dev #auto $this]
+    set model [$ps_dev get_model]
+    set dev [current_supply_devices::$model #auto $this]
   }
   method set_curr {val} { $dev set_curr $val }
   method get_curr {}    { return [ $dev get_curr ]}
@@ -112,6 +113,37 @@ namespace eval current_supply_devices {
     method get_curr {} {return $cur}
     method get_volt {} {return [expr {$cur*$R}] }
   }
+
+  # Tenma 72-2550
+  itcl::class tenma_72-2550 {
+    variable cur; # current
+    variable R;   # resistance
+
+    constructor {int_class} {
+      global ps_dev
+      $int_class configure -min_t_step 0.2
+      $int_class configure -min_i_step 0.001
+      $int_class configure -max_rate 1
+      $int_class configure -max_i 3.0
+      $int_class configure -min_i 0
+      set cur 0
+      set R 0.1
+    }
+    method set_curr {val} {
+      global ps_dev
+      set val [expr {round($val*1000)/1000.0}]
+      $ps_dev cmd "ISET1:$val"
+    }
+    method get_curr {} {
+      global ps_dev
+      return [$ps_dev cmd "IOUT1?"]
+    }
+    method get_volt {} {
+      global ps_dev
+      return [$ps_dev cmd "VOUT1?"]
+    }
+  }
+
 }
 
 #############################################################
@@ -123,6 +155,7 @@ if {[catch {parse_options "sweeper" \
 # Check options.
 # We need non-empty ps_dev.
 if {$ps_dev  == {} } { error "Error: -ps_dev option is empty" }
+Device $ps_dev
 
 # Open devices.
 if {$db_dev != {} } { Device $db_dev }
