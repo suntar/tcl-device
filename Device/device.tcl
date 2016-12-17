@@ -63,12 +63,10 @@ itcl::class Device {
   ####################################################################
   # run command, read response if needed
   method write {c} {
-    after 1000 {
-      puts "Device locking timeout: $name"
-      return
-    }
+    set dd [after 1000 { puts "Device locking timeout"; return }]
     $io_lock wait
     $io_lock get
+    after cancel $dd
     $dev write $msg
     $io_lock release
     return $ret
@@ -77,12 +75,10 @@ itcl::class Device {
   ####################################################################
   # run command, read response if needed
   method cmd {msg} {
-    after 1000 {
-      puts "Device locking timeout: $name"
-      return
-    }
+    set dd [after 1000 { puts "Device locking timeout"; return }]
     $io_lock wait
     $io_lock get
+    after cancel $dd
     set ret [ $dev cmd $msg ]
     $io_lock release
     return $ret
@@ -93,12 +89,10 @@ itcl::class Device {
   ####################################################################
   # read response
   method read {c} {
-    after 1000 {
-      puts "Device locking timeout: $name"
-      return
-    }
+    set dd [after 1000 { puts "Device locking timeout"; return }]
     $io_lock wait
     $io_lock get
+    after cancel $dd
     set ret [$dev read ]
     $io_lock release
     return $ret
@@ -108,9 +102,10 @@ itcl::class Device {
   # High-level lock commands.
   # If you want to grab the device for a long time, use this
   method lock {} {
-    after 1000 { error "Device is locked: $name" }
+    set dd [after 1000 { error "Device is locked" }]
     $lock wait
     $lock get
+    after cancel $dd
   }
   method unlock {
     $lock release
