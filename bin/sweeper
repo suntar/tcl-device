@@ -49,7 +49,9 @@ itcl::class CurrentSupplyDevice {
 
     set curr [get_curr]
     if { $db_dev != {} && $db_val != {}} {
-      $db_dev cmd "put $db_val now $curr [get_volt]" }
+      $db_dev cmd "put $db_val now $curr [get_volt]"
+      $db_dev cmd "sync"
+    }
 
     if {$curr < $dest} {set dir 1} else {set dir -1}
 
@@ -68,9 +70,13 @@ itcl::class CurrentSupplyDevice {
       set_curr $dest
       set curr [get_curr]
       if { $db_dev != {} && $db_val != {}} {
-        $db_dev cmd "put $db_val now $curr [get_volt]" }
+        $db_dev cmd "put $db_val now $curr [get_volt]"
+        $db_dev cmd "sync"
+      }
       if { $db_dev != {} && $db_ann != {}} {
-        $db_dev cmd "put $db_ann now stop sweep at $curr" }
+        $db_dev cmd "put $db_ann now stop sweep at $curr"
+        $db_dev cmd "sync"
+      }
       return
     }
 
