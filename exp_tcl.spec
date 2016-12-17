@@ -21,13 +21,14 @@ TCL packages for my experimental computer
 # build and install tcl packages
 for n in Graphene\
          GrapheneMonitor\
-         ParseOptions-1.0\
+         ParseOptions-2.0\
          Prectime-1.1\
          Daemon\
          Locking-1.1\
          xBLT\
-         GPIB\
-         Device; do
+         GpibLib\
+         Device\
+         ; do
   [ ! -s "$n/Makefile" ] || make -C $n
   mkdir -p %buildroot/%_tcldatadir/$n/
   mkdir -p %buildroot/%_libdir/tcl/
