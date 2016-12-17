@@ -128,15 +128,27 @@ itcl::class gpib {
 # running graphene interface:
 #   graphene -d . interactive
 #   ssh somehost graphene -d . interactive
-# TODO! - do not use graphene package
 itcl::class graphene {
   variable dev
   constructor {pars} {
-    package require Graphene
-    set dev [::graphene::open {*}$pars]
+    set dev [::open "| $pars" RDWR]
+    fconfigure $dev -buffering line
   }
-  destructor { ::graphene::close $dev }
-  method cmd {msg} { return [::graphene::cmd $dev $msg] }
+  destructor {
+    ::close $dev
+  }
+  # write command, read response until OK or Error line
+  method cmd {msg} {
+    puts $dev $msg
+    set ret {}
+    while {1} {
+      set l [gets $dev]
+      if { [regexp {^Error: (.*)} $l e ] } { error $e }
+      if { [regexp {^OK$} $l] } { return $ret }
+      lappend ret $l
+    }
+    return $ret
+  }
 }
 
 ###########################################################
