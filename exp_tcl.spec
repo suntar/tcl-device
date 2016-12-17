@@ -36,10 +36,13 @@ for n in Graphene\
   install -m644 $n/*.so  %buildroot/%_libdir/tcl/ ||:
   sed -i -e 's|%%LIB_DIR%%|%_libdir/tcl/|' %buildroot/%_tcldatadir/$n/pkgIndex.tcl
 done
+mkdir -p %buildroot/%_bindir/
+install -m755 bin/*  %buildroot/%_bindir/ ||:
 
 
 %files
 %_tcldatadir/*
 %_libdir/tcl/*
+%_bindir/*
 
 %changelog
