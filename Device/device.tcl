@@ -11,9 +11,11 @@ package require Locking
 # Information about devices read from devices.txt file:
 # name model driver parameters
 #
-# Locking is done on every single input/output operation
-# using Rota's Locking library.
-# Higher-level locking may be needed on high-level operations
+# There are two levels of locking implemented using Rota's Locking library.
+# - low-level locking is done on every single input/output operation
+#   to prevent mixing read and write commands from different clients.
+# - high level locking is done by lock/unlock methods to allow user
+#    to grab the device completely for a long time.
 #
 itcl::class Device {
   variable dev;    # device handle
@@ -21,8 +23,9 @@ itcl::class Device {
   variable model;  # device model
   variable drv;    # device driver
   variable pars;   # driver parameters
-  variable gpib_addr;   # gpib address (for gpib_prologix driver)
-  variable lock;   # lock for the device
+  variable gpib_addr;  # gpib address (for gpib_prologix driver)
+  variable io_lock;    # low-level io lock for the device
+  variable lock;       # high-level lock for the device
 
   ####################################################################
   constructor {} {
@@ -52,7 +55,8 @@ itcl::class Device {
     }
     if { $drv eq "" } { error "Can't find device $name in /etc/devices.txt"}
     set dev [conn_drivers::$drv #auto $pars]
-    set lock [lock_init #auto device_lib_lock_for_$name]; # initialize lock
+    set io_lock [lock_init #auto io_lock_for_$name]; # initialize io lock
+    set lock [lock_init #auto lock_for_$name]; # initialize high-level lock
   }
 
 
@@ -60,13 +64,13 @@ itcl::class Device {
   # run command, read response if needed
   method write {c} {
     after 1000 {
-      puts "Device locking timeout"
+      puts "Device locking timeout: $name"
       return
     }
-    $lock wait
-    $lock get
+    $io_lock wait
+    $io_lock get
     $dev write $msg
-    $lock release
+    $io_lock release
     return $ret
   }
 
@@ -74,13 +78,13 @@ itcl::class Device {
   # run command, read response if needed
   method cmd {msg} {
     after 1000 {
-      puts "Device locking timeout"
+      puts "Device locking timeout: $name"
       return
     }
-    $lock wait
-    $lock get
+    $io_lock wait
+    $io_lock get
     set ret [ $dev cmd $msg ]
-    $lock release
+    $io_lock release
     return $ret
   }
   # alias
@@ -90,14 +94,26 @@ itcl::class Device {
   # run command, read response if needed
   method read {c} {
     after 1000 {
-      puts "Device locking timeout"
+      puts "Device locking timeout: $name"
       return
     }
+    $io_lock wait
+    $io_lock get
+    set ret [$dev read ]
+    $io_lock release
+    return $ret
+  }
+
+  ####################################################################
+  # High-level lock commands.
+  # If you want to grab the device for a long time, use this
+  method lock {} {
+    after 1000 { error "Device is locked: $name" }
     $lock wait
     $lock get
-    set ret [$dev read ]
+  }
+  method unlock {
     $lock release
-    return $ret
   }
 
 }
