@@ -91,7 +91,7 @@ itcl::class Device {
   method cmd_read {msg} { cmd $msg }
 
   ####################################################################
-  # run command, read response if needed
+  # read response
   method read {c} {
     after 1000 {
       puts "Device locking timeout: $name"
