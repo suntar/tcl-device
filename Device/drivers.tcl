@@ -205,14 +205,14 @@ itcl::class tenma_ps {
   # read from device
   method read {} {
     after $del
-    return [read $dev $bufsize]
+    return [::read $dev $bufsize]
   }
   # write and then read
   method cmd {msg} {
     puts -nonewline $dev $msg
     flush $dev
     after $del
-    return [read $dev $bufsize]
+    return [::read $dev $bufsize]
   }
 }
 ###########################################################
