@@ -126,6 +126,7 @@ proc read_cmd {dev} {
   gets stdin line
   set cmd [lindex $line 0]
   if {$cmd in [$dev help]} { puts [$dev {*}$line] }
+  if { [eof stdin] } {exit}
 }
 
 # main loop: read stdin, process commands, send answers
