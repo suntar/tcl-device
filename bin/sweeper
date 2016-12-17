@@ -1,37 +1,136 @@
 #!/usr/bin/tclsh
 
-# current sweeper
+# current sweeper with stdin/stdout interface
 
 lappend auto_path ..
-
 package require Device 1.2
 package require ParseOptions 2.0
 
 #############################################################
-## Device model drivers
-itcl::class test_dev {
+## Command line options:
+set options [list \
+{-p -ps_dev}   ps_dev   {test}   {power supply device}\
+{-d -db_dev}   db_dev   {}       {database device (can be empty)}\
+{-n -db_val}   db_val   {}       {database name for numerical values}\
+{-n -db_ann}   db_ann   {}       {database name for annatations}\
+]
+
+#############################################################
+## CurrentSupplyDevice - Device which knows, how to set current
+
+itcl::class CurrentSupplyDevice {
+  variable dev;  # device implementation handler
+  variable rh;   # ramping loop handler
+  public variable min_t_step;  # min time step, s
+  public variable min_i_step;  # min current step, A
+  public variable max_rate;    # max rate, A/s
+  public variable max_i;       # max current, A
+  public variable min_i;       # min current, A
+
+  constructor {} {
+    global ps_dev
+    set rh {}
+    set dev [current_supply_devices::$ps_dev #auto $this]
+  }
+  method set_curr {val} { $dev set_curr $val }
+  method get_curr {}    { return [ $dev get_curr ]}
+  method get_volt {}    { return [ $dev get_volt ]}
+
+  # Return list of commands which can be run from stdin.
+  method help {} {return {help ramp get_curr get_volt} }
+
+  method ramp {dest rate} {
+    global db_dev db_val db_ann
+    after cancel $rh
+
+    if {$dest > $max_i} {set dest $max_i}
+    if {$dest < $min_i} {set dest $min_i}
+    if {$rate > $max_rate} {set rate $max_rate}
+
+    set curr [get_curr]
+    if { $db_dev != {} && $db_val != {}} {
+      $db_dev cmd "put $db_val now $curr [get_volt]" }
+
+    if {$curr < $dest} {set dir 1} else {set dir -1}
+
+
+    # time step for fast/slow sweeps:
+    if { $rate > [expr {$min_i_step/$min_t_step}] } {
+      set dt $min_t_step
+    } else {
+      set dt [expr {$min_i_step/$rate}]
+    }
+    # set current step
+    set di [expr {1.0*$dir*$rate*$dt}]
+
+    # stop ramping if we are near the destination
+    if { [expr {abs($curr-$dest)}] < $di } {
+      set_curr $dest
+      set curr [get_curr]
+      if { $db_dev != {} && $db_val != {}} {
+        $db_dev cmd "put $db_val now $curr [get_volt]" }
+      if { $db_dev != {} && $db_ann != {}} {
+        $db_dev cmd "put $db_ann now stop sweep at $curr" }
+      return
+    }
+
+    set_curr  [expr {$curr + 1.0*$dir*$rate*$dt}]
+
+    # calculate time step in ms (1 ms - limit) and set up ramping loop
+    set dt_ms [expr {round(1000*$dt)}]
+    if {$dt_ms < 1} {set dt_ms 1}
+    set rh [after $dt_ms "$this ramp $dest $rate"]
+    return {OK}
+  }
 }
 
 #############################################################
-# parse options
-set options \
-  [list {-p -ps_dev} ps_dev   {ps0}    {power supply device}\
-        {-d -db_dev} db_dev   {}       {database device (can be empty)}\
-        {-n -db_name} db_name {sweep}  {database name}]
+## device implementations:
+namespace eval current_supply_devices {
+
+  # test device
+  itcl::class test {
+    variable cur; # current
+    variable R;   # resistance
+
+    constructor {int_class} {
+      $int_class configure -min_t_step 0.5
+      $int_class configure -min_i_step 0.01
+      $int_class configure -max_rate 0.1
+      $int_class configure -max_i 10
+      $int_class configure -min_i -10
+      set cur 0
+      set R 0.1
+    }
+    method set_curr {val} {set cur $val}
+    method get_curr {} {return $cur}
+    method get_volt {} {return [expr {$cur*$R}] }
+  }
+}
+
+#############################################################
+
+# Parse options.
 if {[catch {parse_options "sweeper" \
   $argv $options} err]} { error "Error: $err"}
 
-# We need non-empty ps_dev and db_name (if db_dev is not empty).
+# Check options.
+# We need non-empty ps_dev.
 if {$ps_dev  == {} } { error "Error: -ps_dev option is empty" }
-if {$db_name != {} && $db_name == {} } { error "Error: -db_name option is empty" }
 
-
-# open devices
+# Open devices.
 if {$db_dev != {} } { Device $db_dev }
-Device $ps_dev
+set dev [CurrentSupplyDevice #auto]
+
+proc read_cmd {dev} {
+  gets stdin line
+  set cmd [lindex $line 0]
+  if {$cmd in [$dev help]} { puts [$dev {*}$line] }
+}
 
 # main loop: read stdin, process commands, send answers
-while ({read stdin line] >= 0} {
-  set cmd [lidex $line 0]
-  puts $cmd
-}
+fconfigure stdin -buffering line
+fileevent stdin readable "read_cmd $dev"
+vwait forever
+
+
