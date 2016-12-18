@@ -2,9 +2,9 @@
 
 # current sweeper with stdin/stdout interface
 
-lappend auto_path ..
 package require Device 1.2
 package require ParseOptions 2.0
+#package require Tclx
 
 #############################################################
 ## Command line options:
@@ -93,7 +93,7 @@ itcl::class CurrentSupplyDevice {
     # put current value in the database
     set curr_meas [get_curr]
     if { $db_dev != {} && $db_val != {}} {
-      $db_dev cmd "put $db_val now $curr_meas [get_volt]"
+      $db_dev cmd "put $db_val now $curr_meas $curr [get_volt]"
       $db_dev cmd "sync"
     }
 
@@ -116,29 +116,34 @@ itcl::class CurrentSupplyDevice {
         $db_dev cmd "put $db_ann now current jump to $curr"
         $db_dev cmd "sync"
       }
-      return
+      if {$first} {return {OK}} else {return {}}
     }
 
+    # calculate time step in ms (1 ms - limit) and set up ramping loop
+    set dt_ms [expr {round(1000*$dt)}]
+    if {$dt_ms < 1} {set dt_ms 1}
+
     # stop ramping if we are near the destination
-    if { [expr {abs($curr-$dest)}] < $di } {
+    if { [expr {abs($curr-$dest)}] < [expr {abs($di)}] } {
       set_curr $dest
+      # normal delay between current setting and measurement
+      after $dt_ms
       set curr [get_curr]
       if { $db_dev != {} && $db_val != {}} {
-        $db_dev cmd "put $db_val now $curr [get_volt]"
+        $db_dev cmd "put $db_val now $curr $dest [get_volt]"
         $db_dev cmd "sync"
       }
       if { $db_dev != {} && $db_ann != {}} {
         $db_dev cmd "put $db_ann now sweep finished at $curr"
         $db_dev cmd "sync"
       }
-      return
+      if {$first} {return {OK}} else {return {}}
     }
+
+    # change the current
     set curr [expr {$curr + 1.0*$dir*$rate*$dt}]
     set_curr $curr
 
-    # calculate time step in ms (1 ms - limit) and set up ramping loop
-    set dt_ms [expr {round(1000*$dt)}]
-    if {$dt_ms < 1} {set dt_ms 1}
     set rh [after $dt_ms "$this sweep $dest $rate 0"]
     return {OK}
   }
@@ -179,15 +184,15 @@ namespace eval current_supply_devices {
       $int_class configure -max_rate 1
       $int_class configure -max_i 3.09
       $int_class configure -min_i 0
-      $int_class configure -tolerance 0.01
+      $int_class configure -tolerance 0.03
     }
 
     method reset {} {
       global ps_dev ovp volt
       ## set voltage if needed
       if { $volt > 0 } {
-        set val [expr {round($ovp*100)/100.0}]
-        $ps_dev cmd "VSET1:$ovp"
+        set volt [expr {round($volt*100)/100.0}]
+        $ps_dev cmd "VSET1:$volt"
       }
       ## set OVP if needed
       if { $ovp != {} && $ovp != 0 } {
@@ -229,13 +234,23 @@ if {[catch {parse_options "sweeper" \
 # We need non-empty ps_dev.
 if {$ps_dev  == {} } { error "Error: -ps_dev option is empty" }
 Device $ps_dev
+#$ps_dev lock
+#signal trap {SIGTERM SIGHUP} {$ps_dev unlock; exit}
 
 # Open devices.
 if {$db_dev != {} } { Device $db_dev }
 set dev [CurrentSupplyDevice #auto]
 
+
 proc read_cmd {dev} {
+  global ps_dev
   gets stdin line
+
+  if { [eof stdin] } {
+#    $ps_dev unlock
+    exit
+  }
+  if {$line == {}} {continue}
   set cmd [lindex $line 0]
   if {[catch {
     if {$cmd in [$dev help]} { puts [$dev {*}$line] }\
@@ -243,7 +258,6 @@ proc read_cmd {dev} {
     }]} {
     puts "Error: bad command: $line"
   }
-  if { [eof stdin] } {exit}
 }
 
 # main loop: read stdin, process commands, send answers
