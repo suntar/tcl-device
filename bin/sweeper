@@ -112,10 +112,6 @@ itcl::class CurrentSupplyDevice {
     # stop ramping if the real current is outside the tolerance
     if { [expr {abs($curr_meas-$curr)}] > $tolerance } {
       set curr $curr_meas
-      if { $db_dev != {} && $db_val != {}} {
-        $db_dev cmd "put $db_val now $curr [get_volt]"
-        $db_dev cmd "sync"
-      }
       if { $db_dev != {} && $db_ann != {}} {
         $db_dev cmd "put $db_ann now current jump to $curr"
         $db_dev cmd "sync"
@@ -123,11 +119,10 @@ itcl::class CurrentSupplyDevice {
       return
     }
 
-
     # stop ramping if we are near the destination
     if { [expr {abs($curr-$dest)}] < $di } {
       set_curr $dest
-      set curr $curr_meas
+      set curr [get_curr]
       if { $db_dev != {} && $db_val != {}} {
         $db_dev cmd "put $db_val now $curr [get_volt]"
         $db_dev cmd "sync"
@@ -242,8 +237,12 @@ set dev [CurrentSupplyDevice #auto]
 proc read_cmd {dev} {
   gets stdin line
   set cmd [lindex $line 0]
-  if {$cmd in [$dev help]} { puts [$dev {*}$line] }\
-  else {puts "Error: unknown command"}
+  if {[catch {
+    if {$cmd in [$dev help]} { puts [$dev {*}$line] }\
+      else {puts "Error: unknown command: $line"}
+    }]} {
+    puts "Error: bad command: $line"
+  }
   if { [eof stdin] } {exit}
 }
 
