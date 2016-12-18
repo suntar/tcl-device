@@ -1,0 +1,48 @@
+#!/usr/bin/wish
+
+package require Device 1.2
+
+label .curr    -textvariable curr -font {-size 20} -text 0
+entry .dest    -textvariable dest
+label .dest_l  -text "Destination, A"
+entry .rate    -textvariable rate
+label .rate_l  -text "Rate, A/s"
+
+button .start_btn -text "Start"  -command sweep_start
+button .stop_btn  -text "Stop"   -command sweep_stop
+button .reset_btn -text "Reset"  -command reset
+
+grid  .dest_l .dest  -sticky we
+grid  .curr -row 0 -column 3 -padx 5 -rowspan 2
+grid  .rate_l .rate  -sticky we
+grid  .start_btn .stop_btn .reset_btn
+
+Device sweep_tenma
+
+proc sweep_start {} {
+  global dest rate
+  sweep_tenma cmd "sweep $dest $rate"
+  set curr [sweep_tenma cmd get_curr]
+}
+
+proc sweep_stop {} {
+  sweep_tenma cmd sweep_stop
+  set curr [sweep_tenma cmd get_curr]
+}
+
+proc reset {} {
+  sweep_tenma cmd reset
+  set curr [sweep_tenma cmd get_curr]
+}
+
+proc update_curr {} {
+  global curr
+  set curr [sweep_tenma cmd get_curr]
+  after 1000 update_curr
+}
+
+after idle update_curr
+
+set status idle
+
+
