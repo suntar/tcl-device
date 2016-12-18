@@ -12,7 +12,9 @@ set options [list \
 {-p -ps_dev}   ps_dev   {test}   {power supply device}\
 {-d -db_dev}   db_dev   {}       {database device (can be empty)}\
 {-n -db_val}   db_val   {}       {database name for numerical values}\
-{-n -db_ann}   db_ann   {}       {database name for annatations}\
+{-a -db_ann}   db_ann   {}       {database name for annatations}\
+{-o -volt}     volt     {1}      {set voltage, V}\
+{-o -ovp}      ovp      {1}      {set over-voltage protection }\
 ]
 
 #############################################################
@@ -38,9 +40,22 @@ itcl::class CurrentSupplyDevice {
   method get_volt {}    { return [ $dev get_volt ]}
 
   # Return list of commands which can be run from stdin.
-  method help {} {return {help ramp get_curr get_volt} }
+  method help {} {return {help sweep sweep_stop reset get_curr get_volt} }
 
-  method ramp {dest rate} {
+  # stop sweep and reset device
+  method reset {} {
+    after cancel $rh
+    $dev reset
+    return {OK}
+  }
+
+  # stop sweep and reset device
+  method sweep_stop {} {
+    after cancel $rh
+    return {OK}
+  }
+
+  method sweep {dest rate} {
     global db_dev db_val db_ann
     after cancel $rh
 
@@ -55,7 +70,6 @@ itcl::class CurrentSupplyDevice {
     }
 
     if {$curr < $dest} {set dir 1} else {set dir -1}
-
 
     # time step for fast/slow sweeps:
     if { $rate > [expr {$min_i_step/$min_t_step}] } {
@@ -86,7 +100,7 @@ itcl::class CurrentSupplyDevice {
     # calculate time step in ms (1 ms - limit) and set up ramping loop
     set dt_ms [expr {round(1000*$dt)}]
     if {$dt_ms < 1} {set dt_ms 1}
-    set rh [after $dt_ms "$this ramp $dest $rate"]
+    set rh [after $dt_ms "$this sweep $dest $rate"]
     return {OK}
   }
 }
@@ -112,23 +126,42 @@ namespace eval current_supply_devices {
     method set_curr {val} {set cur $val}
     method get_curr {} {return $cur}
     method get_volt {} {return [expr {$cur*$R}] }
+    method reset {} {}
   }
 
   # Tenma 72-2550
   itcl::class tenma_72-2550 {
-    variable cur; # current
-    variable R;   # resistance
 
+    ## set device parameters and reset device
     constructor {int_class} {
-      global ps_dev
       $int_class configure -min_t_step 0.2
       $int_class configure -min_i_step 0.001
       $int_class configure -max_rate 1
-      $int_class configure -max_i 3.0
+      $int_class configure -max_i 3.09
       $int_class configure -min_i 0
-      set cur 0
-      set R 0.1
+      reset
     }
+
+    method reset {} {
+      global ps_dev ovp volt
+      ## set voltage if needed
+      if { $volt > 0 } {
+        set val [expr {round($ovp*100)/100.0}]
+        $ps_dev cmd "VSET1:$ovp"
+      }
+      ## set OVP if needed
+      if { $ovp != {} && $ovp != 0 } {
+        $ps_dev cmd "OVP1"
+      } else {
+        $ps_dev cmd "OVP0"
+      }
+      ## set current to actual current, turn output on
+      set status [$ps_dev cmd "STATUS?"]
+      set c [$ps_dev cmd "IOUT1?"]
+      $ps_dev cmd "ISET1:$c"
+      $ps_dev cmd "OUT1"
+    }
+
     method set_curr {val} {
       global ps_dev
       set val [expr {round($val*1000)/1000.0}]
