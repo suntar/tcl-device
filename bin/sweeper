@@ -58,7 +58,7 @@ itcl::class CurrentSupplyDevice {
     set $rh {}
     $dev reset
     set curr [get_curr]
-    return {OK}
+    return
   }
 
   ######################################
@@ -70,7 +70,7 @@ itcl::class CurrentSupplyDevice {
       $db_dev cmd "sync"
     }
     after cancel $rh
-    return {OK}
+    return
   }
 
   ######################################
@@ -116,7 +116,7 @@ itcl::class CurrentSupplyDevice {
         $db_dev cmd "put $db_ann now current jump to $curr"
         $db_dev cmd "sync"
       }
-      if {$first} {return {OK}} else {return {}}
+      return
     }
 
     # calculate time step in ms (1 ms - limit) and set up ramping loop
@@ -137,7 +137,7 @@ itcl::class CurrentSupplyDevice {
         $db_dev cmd "put $db_ann now sweep finished at $curr"
         $db_dev cmd "sync"
       }
-      if {$first} {return {OK}} else {return {}}
+      return
     }
 
     # change the current
@@ -145,7 +145,7 @@ itcl::class CurrentSupplyDevice {
     set_curr $curr
 
     set rh [after $dt_ms "$this sweep $dest $rate 0"]
-    return {OK}
+    return
   }
 }
 
@@ -253,7 +253,7 @@ proc read_cmd {dev} {
   if {$line == {}} {continue}
   set cmd [lindex $line 0]
   if {[catch {
-    if {$cmd in [$dev help]} { puts [$dev {*}$line] }\
+    if {$cmd in [$dev help]} { puts "[$dev {*}$line]\nOK" }\
       else {puts "Error: unknown command: $line"}
     }]} {
     puts "Error: bad command: $line"
