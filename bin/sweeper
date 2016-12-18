@@ -23,17 +23,21 @@ set options [list \
 itcl::class CurrentSupplyDevice {
   variable dev;  # device implementation handler
   variable rh;   # ramping loop handler
+  variable curr; # current
   public variable min_t_step;  # min time step, s
   public variable min_i_step;  # min current step, A
   public variable max_rate;    # max rate, A/s
   public variable max_i;       # max current, A
   public variable min_i;       # min current, A
+  public variable tolerance;   # how large can be difference between
+                               # set and measured current, A
 
   constructor {} {
     global ps_dev
     set rh {}
     set model [$ps_dev get_model]
     set dev [current_supply_devices::$model #auto $this]
+    reset
   }
   method set_curr {val} { $dev set_curr $val }
   method get_curr {}    { return [ $dev get_curr ]}
@@ -42,30 +46,54 @@ itcl::class CurrentSupplyDevice {
   # Return list of commands which can be run from stdin.
   method help {} {return {help sweep sweep_stop reset get_curr get_volt} }
 
+  ######################################
   # stop sweep and reset device
   method reset {} {
+    global db_dev db_val db_ann
+    if { $db_dev != {} && $db_val != {} } {
+      $db_dev cmd "put $db_ann now reset"
+      $db_dev cmd "sync"
+    }
     after cancel $rh
+    set $rh {}
     $dev reset
+    set curr [get_curr]
     return {OK}
   }
 
+  ######################################
   # stop sweep and reset device
   method sweep_stop {} {
+    global db_dev db_val db_ann
+    if {$rh != {} && $db_dev != {} && $db_val != {} } {
+      $db_dev cmd "put $db_ann now sweep_stop"
+      $db_dev cmd "sync"
+    }
     after cancel $rh
     return {OK}
   }
 
-  method sweep {dest rate} {
+  ######################################
+  method sweep {dest rate {first 1}} {
     global db_dev db_val db_ann
+
+    # write annotation in the beginning of the sweep
+    if {$first && $db_dev != {} && $db_val != {} } {
+      $db_dev cmd "put $db_ann now sweep to $dest A at $rate A/s"
+      $db_dev cmd "sync"
+    }
+
     after cancel $rh
 
     if {$dest > $max_i} {set dest $max_i}
     if {$dest < $min_i} {set dest $min_i}
     if {$rate > $max_rate} {set rate $max_rate}
 
-    set curr [get_curr]
+
+    # put current value in the database
+    set curr_meas [get_curr]
     if { $db_dev != {} && $db_val != {}} {
-      $db_dev cmd "put $db_val now $curr [get_volt]"
+      $db_dev cmd "put $db_val now $curr_meas [get_volt]"
       $db_dev cmd "sync"
     }
 
@@ -80,27 +108,43 @@ itcl::class CurrentSupplyDevice {
     # set current step
     set di [expr {1.0*$dir*$rate*$dt}]
 
-    # stop ramping if we are near the destination
-    if { [expr {abs($curr-$dest)}] < $di } {
-      set_curr $dest
-      set curr [get_curr]
+
+    # stop ramping if the real current is outside the tolerance
+    if { [expr {abs($curr_meas-$curr)}] > $tolerance } {
+      set curr $curr_meas
       if { $db_dev != {} && $db_val != {}} {
         $db_dev cmd "put $db_val now $curr [get_volt]"
         $db_dev cmd "sync"
       }
       if { $db_dev != {} && $db_ann != {}} {
-        $db_dev cmd "put $db_ann now stop sweep at $curr"
+        $db_dev cmd "put $db_ann now current jump to $curr"
         $db_dev cmd "sync"
       }
       return
     }
 
-    set_curr  [expr {$curr + 1.0*$dir*$rate*$dt}]
+
+    # stop ramping if we are near the destination
+    if { [expr {abs($curr-$dest)}] < $di } {
+      set_curr $dest
+      set curr $curr_meas
+      if { $db_dev != {} && $db_val != {}} {
+        $db_dev cmd "put $db_val now $curr [get_volt]"
+        $db_dev cmd "sync"
+      }
+      if { $db_dev != {} && $db_ann != {}} {
+        $db_dev cmd "put $db_ann now sweep finished at $curr"
+        $db_dev cmd "sync"
+      }
+      return
+    }
+    set curr [expr {$curr + 1.0*$dir*$rate*$dt}]
+    set_curr $curr
 
     # calculate time step in ms (1 ms - limit) and set up ramping loop
     set dt_ms [expr {round(1000*$dt)}]
     if {$dt_ms < 1} {set dt_ms 1}
-    set rh [after $dt_ms "$this sweep $dest $rate"]
+    set rh [after $dt_ms "$this sweep $dest $rate 0"]
     return {OK}
   }
 }
@@ -109,6 +153,7 @@ itcl::class CurrentSupplyDevice {
 ## device implementations:
 namespace eval current_supply_devices {
 
+  ######################################
   # test device
   itcl::class test {
     variable cur; # current
@@ -128,7 +173,7 @@ namespace eval current_supply_devices {
     method get_volt {} {return [expr {$cur*$R}] }
     method reset {} {}
   }
-
+  ######################################
   # Tenma 72-2550
   itcl::class tenma_72-2550 {
 
@@ -139,7 +184,7 @@ namespace eval current_supply_devices {
       $int_class configure -max_rate 1
       $int_class configure -max_i 3.09
       $int_class configure -min_i 0
-      reset
+      $int_class configure -tolerance 0.01
     }
 
     method reset {} {
@@ -197,7 +242,8 @@ set dev [CurrentSupplyDevice #auto]
 proc read_cmd {dev} {
   gets stdin line
   set cmd [lindex $line 0]
-  if {$cmd in [$dev help]} { puts [$dev {*}$line] }
+  if {$cmd in [$dev help]} { puts [$dev {*}$line] }\
+  else {puts "Error: unknown command"}
   if { [eof stdin] } {exit}
 }
 
