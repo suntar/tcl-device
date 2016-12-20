@@ -62,14 +62,14 @@ itcl::class Device {
 
   ####################################################################
   # run command, read response if needed
-  method write {c} {
+  method write {msg} {
     set dd [after 1000 { puts "Device locking timeout"; return }]
     $io_lock wait
     $io_lock get
     after cancel $dd
     $dev write $msg
     $io_lock release
-    return $ret
+    return {}
   }
 
   ####################################################################
@@ -88,7 +88,7 @@ itcl::class Device {
 
   ####################################################################
   # read response
-  method read {c} {
+  method read {} {
     set dd [after 1000 { puts "Device locking timeout"; return }]
     $io_lock wait
     $io_lock get
@@ -107,7 +107,7 @@ itcl::class Device {
     $lock get
     after cancel $dd
   }
-  method unlock {
+  method unlock {} {
     $lock release
   }
 

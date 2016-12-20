@@ -4,7 +4,7 @@
 
 package require Itcl
 
-namespace eval conn_drivers {
+
 
 ####################################################################
 ## read a line until \n character or timeout
@@ -20,6 +20,8 @@ proc read_line_nb {dev timeout} {
   }
 }
 
+namespace eval conn_drivers {
+
 ###########################################################
 # GPIB device connected through Prologix gpib2eth converter
 # parameters:
@@ -30,6 +32,8 @@ itcl::class gpib_prologix {
   variable dev
   variable addr
   variable read_timeout
+
+
 
   # open device
   constructor {pars} {
@@ -171,7 +175,7 @@ itcl::class pico_rec {
     return [read_line_nb $dev $read_timeout]
   }
   method cmd {msg} {
-    puts $dev $c
+    puts $dev $msg
     flush $dev
     return [read_line_nb $dev $read_timeout]
   }
