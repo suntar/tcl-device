@@ -30,10 +30,8 @@ namespace eval conn_drivers {
 #  -read_timeout -- read timeout, ms
 itcl::class gpib_prologix {
   variable dev
-  variable addr
+  variable gpib_addr
   variable read_timeout
-
-
 
   # open device
   constructor {pars} {
@@ -53,14 +51,14 @@ itcl::class gpib_prologix {
     puts $dev "++addr"
     flush $dev
     set a [read_line_nb $dev $read_timeout]
-    if { $a != $addr } {
-      puts $dev "++addr $addr"
+    if { $a != $gpib_addr } {
+      puts $dev "++addr $gpib_addr"
       flush $dev
     }
   }
   # write to device without reading answer
   method write {msg} {
-    set_addr()
+    set_addr
     puts $dev $msg
     flush $dev
   }
