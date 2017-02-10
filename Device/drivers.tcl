@@ -31,7 +31,7 @@ namespace eval conn_drivers {
 itcl::class gpib_prologix {
   variable dev
   variable gpib_addr
-  variable read_timeout
+  variable read_timeout 1000
 
   # open device
   constructor {pars} {
@@ -39,7 +39,6 @@ itcl::class gpib_prologix {
     set host      [lindex $pp 0]
     set gpib_addr [lindex $pp 1]
     set dev [::socket $host 1234]
-    set read_timeout 1000
     fconfigure $dev -blocking false -buffering line
   }
   # close device
@@ -82,7 +81,7 @@ itcl::class gpib_prologix {
 #  -read_timeout -- read timeout, ms
 itcl::class lxi_scpi_raw {
   variable dev
-  variable read_timeout
+  variable read_timeout 1000
 
   # open device
   constructor {pars} {
