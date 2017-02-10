@@ -1,6 +1,6 @@
 package provide Device 1.2
 package require Itcl
-package require Locking
+package require Locking 2.0
 
 # Open any device, send command, read response, close device.
 #
@@ -24,8 +24,6 @@ itcl::class Device {
   variable drv;    # device driver
   variable pars;   # driver parameters
   variable gpib_addr;  # gpib address (for gpib_prologix driver)
-  variable io_lock;    # low-level io lock for the device
-  variable lock;       # high-level lock for the device
 
   ####################################################################
   constructor {} {
@@ -55,8 +53,6 @@ itcl::class Device {
     }
     if { $drv eq "" } { error "Can't find device $name in /etc/devices.txt"}
     set dev [conn_drivers::$drv #auto $pars]
-    set io_lock [lock_init #auto io_lock_for_$name]; # initialize io lock
-    set lock [lock_init #auto lock_for_$name]; # initialize high-level lock
   }
 
 
@@ -64,11 +60,10 @@ itcl::class Device {
   # run command, read response if needed
   method write {msg} {
     set dd [after 1000 { puts "Device locking timeout"; return }]
-    $io_lock wait
-    $io_lock get
+    ::lock io_$name
     after cancel $dd
     $dev write $msg
-    $io_lock release
+    ::unlock io_$name
     return {}
   }
 
@@ -76,11 +71,10 @@ itcl::class Device {
   # run command, read response if needed
   method cmd {msg} {
     set dd [after 1000 { puts "Device locking timeout"; return }]
-    $io_lock wait
-    $io_lock get
+    ::lock io_$name
     after cancel $dd
     set ret [ $dev cmd $msg ]
-    $io_lock release
+    ::unlock io_$name
     return $ret
   }
   # alias
@@ -90,11 +84,10 @@ itcl::class Device {
   # read response
   method read {} {
     set dd [after 1000 { puts "Device locking timeout"; return }]
-    $io_lock wait
-    $io_lock get
+    ::lock io_$name
     after cancel $dd
     set ret [$dev read ]
-    $io_lock release
+    ::unlock io_$name
     return $ret
   }
 
@@ -103,12 +96,11 @@ itcl::class Device {
   # If you want to grab the device for a long time, use this
   method lock {} {
     set dd [after 1000 { error "Device is locked" }]
-    $lock wait
-    $lock get
+    ::lock $name
     after cancel $dd
   }
   method unlock {} {
-    $lock release
+    ::unlock $name
   }
 
   method get_model {} {return $model}

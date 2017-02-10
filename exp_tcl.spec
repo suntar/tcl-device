@@ -23,8 +23,7 @@ for n in Graphene\
          GrapheneMonitor\
          ParseOptions-2.0\
          Prectime-1.1\
-         Daemon\
-         Locking-1.1\
+         Locking-2.0\
          xBLT\
          GpibLib\
          Device\

@@ -184,7 +184,7 @@ namespace eval current_supply_devices {
       $int_class configure -max_rate 1
       $int_class configure -max_i 3.09
       $int_class configure -min_i 0
-      $int_class configure -tolerance 0.03
+      $int_class configure -tolerance 0.01
     }
 
     method reset {} {
@@ -233,11 +233,20 @@ if {[catch {parse_options "sweeper" \
 # Check options.
 # We need non-empty ps_dev.
 if {$ps_dev  == {} } { error "Error: -ps_dev option is empty" }
-Device $ps_dev
-#$ps_dev lock
-#signal trap {SIGTERM SIGHUP} {$ps_dev unlock; exit}
+
+
+if {[catch { Device $ps_dev }]} {
+  puts "Error: can't open device $ps_dev"
+  exit
+}
+
+if {[catch { after idle $ps_dev lock }]} {
+  puts "Error: device $ps_dev is locked"
+  exit
+}
 
 # Open devices.
+
 if {$db_dev != {} } { Device $db_dev }
 set dev [CurrentSupplyDevice #auto]
 
@@ -247,7 +256,7 @@ proc read_cmd {dev} {
   gets stdin line
 
   if { [eof stdin] } {
-#    $ps_dev unlock
+    $ps_dev unlock
     exit
   }
   if {$line == {}} {continue}
