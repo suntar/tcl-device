@@ -1,58 +1,113 @@
 #!/usr/bin/tclsh
 
-lappend auto_path ..
-package require Device 1.2
+# fork pulse controller with stdin/stdout interface
 
-set DB   db
-set osc  osc0
-set gen  gen0
+package require Device 1.3
+package require ParseOptions 2.0
+#package require Tclx
 
-Device $DB
-#db cmd_read "create fork0 DOUBLE"
+#############################################################
+## Command line options:
+set options [list \
+{-o -osc_dev}  osc_dev  {}       {oscilloscope device}\
+{-g -gen_dev}  gen_dev  {}       {generator device}\
+{-d -db_dev}   db_dev   {}       {database device (can be empty)}\
+{-n -db_val}   db_val   {}       {database name for numerical values}\
+{-a -db_ann}   db_ann   {}       {database name for annatations}\
+{-D -data_dir} data_dir {./data} {data folder}\
+]
 
-set f0 32870
-set cnt 100
-set  dt  1e-5
-set volt 10
+#############################################################
+### ForkPulseDriver - class for making fork pulses
+### methods:
+###   constructor(options)
+###   list -- print list of commands which can be run from stdin
 
-## prepare generator
-Device $gen
-$gen write "OUTP OFF"
-$gen write "FREQ $f0"
-$gen write "VOLT $volt"
-$gen write "BURST:STATE on"
-$gen write "BURST:MODE trig"
-$gen write "BURST:NCYC $cnt"
-$gen write "TRIG:SOURCE BUS"
-$gen write "OUTP ON"
+itcl::class ForkPulseDriver {
+  variable osc_dev
+  variable gen_dev
+  variable db_dev
+  variable db_val
+  variable db_ann
+  variable datadir
 
+  variable f0 32870
+  variable cnt 100
+  variable dt  1e-5 
+  variable volt 10
+  variable time 5
 
-## A - trigger, B - signal
-Device $osc
-$osc cmd_read "chan_set A 1 AC 10"
-$osc cmd_read "chan_set B 1 AC 0.05"
-$osc cmd_read "trig_set A 0.1 RISING 0"
+  constructor {opts} {
+    # Parse options.
+    global options
+    parse_options "fork_pulse" $opts $options
 
-puts "Start measurements"
+    ##### Open oscilloscope and generator conections and grab locks.
+    ##### Check that device models are propper.
 
- set time 5.0
-while {1} {
-  set N [expr {int(1.0*$time/$dt)}]
-  set t [clock seconds]
-  $osc cmd_read "block B 1024 $N $dt data/sig.dat"
-  $gen write "*TRG"
-  set t0 [clock seconds]
-  $osc read ""
+    if {$osc_dev  == {} } { error "osc_dev is empty" }
+    if {$gen_dev  == {} } { error "gen_dev is empty" }
 
-  set del [expr {1.2*$cnt/$f0}]
-  exec pico_filter -f pnm data/sig.dat | pnmtopng > data/sig.png
-  set out [exec pico_filter -T $del -F 30000 -G 34000 -f fork data/sig.dat ]
-  exec pico_filter -w 8192 -f sfft_pnm -T $del -F 30000 -G 34000 data/sig.dat | pnmtopng > data/sig_fft.png
+    Device $osc_dev
+    Device $gen_dev
 
-  set tau [lindex $out 3]
-  set time [expr {$tau*5}]
-  puts $time
-  $DB cmd_read "put fork0 $out"
-  $DB cmd_read "sync"
-  puts "$t0: $out"
+    $osc_dev lock
+    $gen_dev lock
+    if { [$osc_dev get_model] != "pico4224" } {error "only pico4224 oscilloscope model is supported"}
+    if { [$gen_dev get_model] != "agilent_33511b" } {error "Error: only agilent_33511b generator model is supported"}
+
+    ##### Open database connection is needed
+    if {$db_dev != {} } { Device $db_dev }
+
+    ## prepare generator and oscilloscope
+    set_gen
+    set_osc
+  }
+  destructor {
+    $osc_dev unlock
+    $gen_dev unlock
+  }
+
+  method set_gen {} {
+    $gen_dev write "BURST:STATE on"
+    $gen_dev write "BURST:MODE trig"
+    $gen_dev write "BURST:NCYC $cnt"
+    $gen_dev write "TRIG:SOURCE BUS"
+    $gen_dev write "FREQ $f0"
+    $gen_dev write "VOLT $volt"
+    $gen_dev write "OUTP ON"
+  }
+  method set_osc {} {
+    ## A - signal, B - trigger
+    $osc_dev cmd_read "chan_set A 1 AC 0.05"
+    $osc_dev cmd_read "chan_set B 1 AC 10"
+    $osc_dev cmd_read "trig_set B 0.1 RISING 0"
+  }
+
+  method pulse {} {
+    set N [expr {int(1.0*$time/$dt)}]
+    $osc_dev cmd_read "block A 1024 $N $dt data/sig.dat"
+    $gen_dev write "*TRG"
+    $osc_dev read
+
+    set del [expr {1.2*$cnt/$f0}]
+    set out [exec pico_filter -T $del -F 30000 -G 34000 -f fork data/sig.dat ]
+    exec pico_filter -f pnm data/sig.dat | pnmtopng > data/sig.png
+    exec pico_filter -w 8192 -f sfft_pnm -T $del -F 30000 -G 34000 data/sig.dat | pnmtopng > data/sig.fft.png
+
+    set tau [lindex $out 3]
+    set time [expr {$tau*5}]
+    if {$db_dev != {} && $db_val !={} } {
+      $db_dev cmd_read "put $db_val $out"
+      $db_dev cmd_read "sync"
+    }
+    return $out
+  }
+
+  # Return list of commands which can be run from stdin.
+  method list {} {return {list pulse} }
 }
+
+#############################################################
+
+cli::run ForkPulseDriver $argv

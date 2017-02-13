@@ -2,9 +2,8 @@
 
 # current sweeper with stdin/stdout interface
 
-package require Device 1.2
+package require Device 1.3
 package require ParseOptions 2.0
-#package require Tclx
 
 #############################################################
 ## Command line options:
@@ -18,9 +17,8 @@ set options [list \
 ]
 
 #############################################################
-## CurrentSupplyDevice - Device which knows, how to set current
 
-itcl::class CurrentSupplyDevice {
+itcl::class SweepController {
   variable dev;  # device implementation handler
   variable rh;   # ramping loop handler
   variable curr; # current
@@ -31,32 +29,51 @@ itcl::class CurrentSupplyDevice {
   public variable min_i;       # min current, A
   public variable tolerance;   # how large can be difference between
                                # set and measured current, A
+  public variable ps_dev
+  variable db_dev
+  variable db_val
+  variable db_ann
+  variable volt
+  variable ovp
 
-  constructor {} {
-    global ps_dev
+  constructor {opts} {
+    #Parse options.
+    global options
+    parse_options "sweeper" $opts $options
+
+    if {$ps_dev  == {} } { error "ps_dev is empty" }
+    set d [Device $ps_dev]
+    $ps_dev lock
+
+    # Open devices.
+    if {$db_dev != {} } { Device $db_dev }
+
     set rh {}
     set model [$ps_dev get_model]
-    set dev [current_supply_devices::$model #auto $this]
+    set dev [current_supply_devices::$model #auto SweepController::$ps_dev]
     reset
   }
+  destructor {
+    $ps_dev unlock
+  }
+
   method set_curr {val} { $dev set_curr $val }
   method get_curr {}    { return [ $dev get_curr ]}
   method get_volt {}    { return [ $dev get_volt ]}
 
   # Return list of commands which can be run from stdin.
-  method help {} {return {help sweep sweep_stop reset get_curr get_volt} }
+  method list {} {return {list sweep sweep_stop reset get_curr get_volt} }
 
   ######################################
   # stop sweep and reset device
   method reset {} {
-    global db_dev db_val db_ann
     if { $db_dev != {} && $db_val != {} } {
       $db_dev cmd "put $db_ann now reset"
       $db_dev cmd "sync"
     }
     after cancel $rh
     set $rh {}
-    $dev reset
+    $dev reset $volt $ovp
     set curr [get_curr]
     return
   }
@@ -64,7 +81,6 @@ itcl::class CurrentSupplyDevice {
   ######################################
   # stop sweep and reset device
   method sweep_stop {} {
-    global db_dev db_val db_ann
     if {$rh != {} && $db_dev != {} && $db_val != {} } {
       $db_dev cmd "put $db_ann now sweep_stop"
       $db_dev cmd "sync"
@@ -75,20 +91,25 @@ itcl::class CurrentSupplyDevice {
 
   ######################################
   method sweep {dest rate {first 1}} {
-    global db_dev db_val db_ann
 
     # write annotation in the beginning of the sweep
-    if {$first && $db_dev != {} && $db_val != {} } {
+    if {$first && $db_dev != {} && $db_ann != {} } {
       $db_dev cmd "put $db_ann now sweep to $dest A at $rate A/s"
       $db_dev cmd "sync"
     }
 
     after cancel $rh
 
+    set min_t_step [$dev get_min_t_step]
+    set min_i_step [$dev get_min_i_step]
+    set max_rate   [$dev get_max_rate]
+    set max_i [$dev get_max_i]
+    set min_i [$dev get_min_i]
+    set tolerance [$dev get_tolerance]
+
     if {$dest > $max_i} {set dest $max_i}
     if {$dest < $min_i} {set dest $min_i}
     if {$rate > $max_rate} {set rate $max_rate}
-
 
     # put current value in the database
     set curr_meas [get_curr]
@@ -154,41 +175,20 @@ itcl::class CurrentSupplyDevice {
 namespace eval current_supply_devices {
 
   ######################################
-  # test device
-  itcl::class test {
-    variable cur; # current
-    variable R;   # resistance
-
-    constructor {int_class} {
-      $int_class configure -min_t_step 0.5
-      $int_class configure -min_i_step 0.01
-      $int_class configure -max_rate 0.1
-      $int_class configure -max_i 10
-      $int_class configure -min_i -10
-      set cur 0
-      set R 0.1
-    }
-    method set_curr {val} {set cur $val}
-    method get_curr {} {return $cur}
-    method get_volt {} {return [expr {$cur*$R}] }
-    method reset {} {}
-  }
-  ######################################
   # Tenma 72-2550
   itcl::class tenma_72-2550 {
+    variable ps_dev
 
     ## set device parameters and reset device
-    constructor {int_class} {
-      $int_class configure -min_t_step 0.2
-      $int_class configure -min_i_step 0.001
-      $int_class configure -max_rate 1
-      $int_class configure -max_i 3.09
-      $int_class configure -min_i 0
-      $int_class configure -tolerance 0.01
-    }
+    constructor {conn} { set ps_dev $conn }
+    method get_min_t_step {} {return 0.2}
+    method get_min_i_step {} {return 0.001}
+    method get_max_rate   {} {return 1}
+    method get_max_i      {} {return 3.09}
+    method get_min_i      {} {return 0}
+    method get_tolerance  {} {return 0.01}
 
-    method reset {} {
-      global ps_dev ovp volt
+    method reset {volt ovp} {
       ## set voltage if needed
       if { $volt > 0 } {
         set volt [expr {round($volt*100)/100.0}]
@@ -208,70 +208,21 @@ namespace eval current_supply_devices {
     }
 
     method set_curr {val} {
-      global ps_dev
       set val [expr {round($val*1000)/1000.0}]
       $ps_dev cmd "ISET1:$val"
     }
     method get_curr {} {
-      global ps_dev
       return [$ps_dev cmd "IOUT1?"]
     }
     method get_volt {} {
-      global ps_dev
       return [$ps_dev cmd "VOUT1?"]
     }
   }
+
+
 
 }
 
 #############################################################
 
-# Parse options.
-if {[catch {parse_options "sweeper" \
-  $argv $options} err]} { error "Error: $err"}
-
-# Check options.
-# We need non-empty ps_dev.
-if {$ps_dev  == {} } { error "Error: -ps_dev option is empty" }
-
-
-if {[catch { Device $ps_dev }]} {
-  puts "Error: can't open device $ps_dev"
-  exit
-}
-
-if {[catch { after idle $ps_dev lock }]} {
-  puts "Error: device $ps_dev is locked"
-  exit
-}
-
-# Open devices.
-
-if {$db_dev != {} } { Device $db_dev }
-set dev [CurrentSupplyDevice #auto]
-
-
-proc read_cmd {dev} {
-  global ps_dev
-  gets stdin line
-
-  if { [eof stdin] } {
-    $ps_dev unlock
-    exit
-  }
-  if {$line == {}} {continue}
-  set cmd [lindex $line 0]
-  if {[catch {
-    if {$cmd in [$dev help]} { puts "[$dev {*}$line]\nOK" }\
-      else {puts "Error: unknown command: $line"}
-    }]} {
-    puts "Error: bad command: $line"
-  }
-}
-
-# main loop: read stdin, process commands, send answers
-fconfigure stdin -buffering line
-fileevent stdin readable "read_cmd $dev"
-vwait forever
-
-
+cli::run SweepController $argv

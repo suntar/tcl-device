@@ -3,6 +3,9 @@
 lappend auto_path ..
 package require Device 1.2
 
+
+
+
 #Device lockin0
 #puts [lockin0 cmd *IDN?]
 

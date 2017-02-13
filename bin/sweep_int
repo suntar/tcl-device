@@ -1,6 +1,9 @@
 #!/usr/bin/wish
 
+## Interface for current sweeps
+
 package require Device 1.2
+
 
 label .curr    -textvariable curr -font {-size 20} -text 0
 entry .dest    -textvariable dest
@@ -42,7 +45,6 @@ proc update_curr {} {
 }
 
 after idle update_curr
-
 set status idle
 
 

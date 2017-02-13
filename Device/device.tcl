@@ -1,4 +1,3 @@
-package provide Device 1.2
 package require Itcl
 package require Locking 2.0
 
