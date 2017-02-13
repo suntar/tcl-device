@@ -22,12 +22,6 @@ itcl::class SweepController {
   variable dev;  # device implementation handler
   variable rh;   # ramping loop handler
   variable curr; # current
-  public variable min_t_step;  # min time step, s
-  public variable min_i_step;  # min current step, A
-  public variable max_rate;    # max rate, A/s
-  public variable max_i;       # max current, A
-  public variable min_i;       # min current, A
-  public variable tolerance;   # how large can be difference between
                                # set and measured current, A
   public variable ps_dev
   variable db_dev
@@ -180,7 +174,7 @@ namespace eval current_supply_devices {
     variable ps_dev
 
     ## set device parameters and reset device
-    constructor {conn} { set ps_dev $conn }
+    constructor {conn} { set ps_dev $conn}
     method get_min_t_step {} {return 0.2}
     method get_min_i_step {} {return 0.001}
     method get_max_rate   {} {return 1}
@@ -220,7 +214,122 @@ namespace eval current_supply_devices {
   }
 
 
+  ######################################
+  # Keysight N6700B
+  itcl::class keysight_n6700b {
+    variable ps_dev
+    common N 1;  ## channel number
+    common R 3;  ## current range
 
+    variable min_t_step 0.2;
+    variable min_i_step;
+    variable max_rate 1;
+    variable max_i;
+    variable min_i;
+    variable tolerance;
+
+    ## set device parameters and reset device
+    constructor {conn} {
+      set ps_dev $conn
+
+      # module type
+      set mod [$ps_dev cmd "syst:chan:mod? (@$N)"]
+      switch -- $mod {
+        N6731B {
+          set min_i_step  1e-2
+          set min_i 0.06;
+        }
+        N6762A {
+          # module has two current ranges: 0.1 and 3A
+          $ps_dev write "curr:rang $R,(@$N)"
+          set max_i [$ps_dev cmd "curr:rang? (@$N)"]
+          set min_i 0.0;
+          set min_i_step 1e-4
+          if {$max_i < 0.12} { set min_i_step  1e-5 }
+        }
+        default { error "unknown module: $mod"}
+      }
+      set max_i [$ps_dev cmd "curr:rang? (@$N)"]
+      set tolerance [expr 10*$min_i_step]
+    }
+    method get_min_t_step {} {return $min_t_step}
+    method get_min_i_step {} {return $min_i_step}
+    method get_max_rate   {} {return $max_rate}
+    method get_max_i      {} {return $max_i}
+    method get_min_i      {} {return $min_i}
+    method get_tolerance  {} {return $tolerance}
+
+    method reset {volt ovp} {
+      ## set voltage if needed
+      if { $volt > 0 } {
+        $ps_dev write "volt $volt,(@$N)"
+      }
+      ## set OVP if needed
+      if { $ovp != {} && $ovp != 0 } {
+        $ps_dev write "volt:prot $volt,(@$N)"
+      } else {
+      }
+      ## set current to actual current, turn output on
+      set c [$ps_dev cmd "meas:curr? (@$N)"]
+      $ps_dev write "curr $c,(@$N)"
+      $ps_dev write "outp:prot:cle (@$N)"
+      $ps_dev write "outp on,(@$N)"
+    }
+
+    method set_curr {val} {
+      $ps_dev write "curr $val,(@$N)"
+    }
+    method get_curr {} {
+      return [$ps_dev cmd "meas:curr? (@$N)"]
+    }
+    method get_volt {} {
+      return [$ps_dev cmd "meas:volt? (@$N)"]
+    }
+  }
+
+  ### separate class for each channel:
+  itcl::class keysight_n6700b:1H {
+    inherit keysight_n6700b
+    constructor {conn} {
+      set N 1; set R 3
+      keysight_n6700b::constructor $conn
+    } {}
+  }
+  itcl::class keysight_n6700b:2H {
+    inherit keysight_n6700b
+    constructor {conn} {
+      set N 2; set R 3
+      keysight_n6700b::constructor $conn
+    } {}
+  }
+  itcl::class keysight_n6700b:1L {
+    inherit keysight_n6700b
+    constructor {conn} {
+      set N 1; set R 0.09
+      keysight_n6700b::constructor $conn
+    } {}
+  }
+  itcl::class keysight_n6700b:2L {
+    inherit keysight_n6700b
+    constructor {conn} {
+      set N 2; set R 0.09
+      keysight_n6700b::constructor $conn
+    } {}
+  }
+  itcl::class keysight_n6700b:3 {
+    inherit keysight_n6700b
+    constructor {conn} {
+      set N 3; set R 4
+      keysight_n6700b::constructor $conn
+    } {}
+  }
+  itcl::class keysight_n6700b:4 {
+    inherit keysight_n6700b
+    constructor {conn} {
+      set N 4; set R 4
+      keysight_n6700b::constructor $conn
+    } {}
+  }
 }
 
 #############################################################
