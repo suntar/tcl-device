@@ -1,0 +1,38 @@
+#!/usr/bin/wish
+
+## Interface for pulse fork measurements
+
+package require Device 1.2
+
+Device fork0
+set del 1000
+
+labelframe .f
+label .f.amp    -textvariable amp -font {-size 20} -text 0 -width 12
+label .f.amp_l  -text "Amplitude, mV"
+label .f.tau    -textvariable tau -font {-size 20} -text 0 -width 12
+label .f.tau_l  -text "Relaxation time, s"
+label .f.fre    -textvariable fre -font {-size 20} -text 0 -width 12
+label .f.fre_l  -text "Frequency, Hz"
+grid .f.amp_l .f.amp
+grid .f.tau_l .f.tau
+grid .f.fre_l .f.fre
+pack .f
+
+button .exit -text "Exit"  -command exit
+pack .exit -side right
+
+proc do_pulse {} {
+  global time amp tau fre del
+  set ret [lindex [fork0 cmd pulse] 0]
+  set time [lindex $ret 0]
+  set amp  [format %.6f [expr 1000*[lindex $ret 1]]]
+  set fre  [format %.6f [lindex $ret 2]]
+  set tau  [format %.6f [lindex $ret 3]]
+  after $del do_pulse
+}
+
+after idle do_pulse
+set status idle
+
+
