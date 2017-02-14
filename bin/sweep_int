@@ -4,43 +4,44 @@
 
 package require Device 1.2
 
-
-label .curr    -textvariable curr -font {-size 20} -text 0
-entry .dest    -textvariable dest
-label .dest_l  -text "Destination, A"
-entry .rate    -textvariable rate
-label .rate_l  -text "Rate, A/s"
-
-button .start_btn -text "Start"  -command sweep_start
-button .stop_btn  -text "Stop"   -command sweep_stop
-button .reset_btn -text "Reset"  -command reset
-
-grid  .dest_l .dest  -sticky we
-grid  .curr -row 0 -column 3 -padx 5 -rowspan 2
-grid  .rate_l .rate  -sticky we
-grid  .start_btn .stop_btn .reset_btn
-
-Device sweep_tenma
-
-proc sweep_start {} {
+proc do_start {N} {
   global dest rate
-  sweep_tenma cmd "sweep $dest $rate"
-  set curr [sweep_tenma cmd get_curr]
+  sweep$N cmd "sweep $dest($N) $rate($N)"
+}
+proc do_stop {N} {
+  sweep$N cmd sweep_stop
+}
+proc do_reset {N} {
+  sweep$N cmd reset
 }
 
-proc sweep_stop {} {
-  sweep_tenma cmd sweep_stop
-  set curr [sweep_tenma cmd get_curr]
+proc make_int {N} {
+  Device sweep$N
+
+  label .curr$N    -textvariable curr$N -font {-size 20} -text 0
+  entry .dest($N)    -textvariable dest($N)
+  label .dest_l$N -text "Destination, A"
+  entry .rate($N)    -textvariable rate($N)
+  label .rate_l$N  -text "Rate, A/s"
+
+  button .start_btn$N -text "Start"  -command "do_start $N"
+  button .stop_btn$N  -text "Stop"   -command "do_stop $N"
+  button .reset_btn$N -text "Reset"  -command "do_reset $N"
+
+  grid  .dest_l$N .dest($N)  -sticky we
+  grid  .curr$N -row [expr 4*($N-1)] -column 3 -padx 5 -rowspan 2
+  grid  .rate_l$N .rate($N)  -sticky we
+  grid  .start_btn$N .stop_btn$N .reset_btn$N
 }
 
-proc reset {} {
-  sweep_tenma cmd reset
-  set curr [sweep_tenma cmd get_curr]
-}
+for {set i 1} {$i<5} {incr i} { make_int $i }
 
 proc update_curr {} {
-  global curr
-  set curr [sweep_tenma cmd get_curr]
+  for {set i 1} {$i<5} {incr i} {
+    global curr$i
+    set c [sweep$i cmd get_curr]
+    set curr$i [format %8.2f [expr $c*1000]]
+  }
   after 1000 update_curr
 }
 
