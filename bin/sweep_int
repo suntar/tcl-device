@@ -19,6 +19,7 @@ proc do_reset {N} {
   sweep$N cmd reset
 }
 
+
 proc make_int {N} {
   Device sweep$N
 
@@ -40,15 +41,18 @@ proc make_int {N} {
   pack .f$N
 }
 
+
 for {set i 1} {$i<5} {incr i} { make_int $i }
+button .exit -text "Exit"  -command exit
+pack .exit -side right
 
 proc update_curr {} {
   global curr dest rate
   for {set i 1} {$i<5} {incr i} {
-    set c [sweep$i cmd get_curr]
+    set c [sweep$i cmd get_mcurr]
     if { ! [string is double -strict $c] } { continue }
     set curr($i) [format %8.2f [expr $c*1000]]
-    if { $dest($i) == {} } {set dest($i) [string trimleft $curr($i) " "] }
+    if { $dest($i) == {} } {set dest($i)  0}
     if { $rate($i) == {} } {set rate($i) 10}
   }
   after 1000 update_curr

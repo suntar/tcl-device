@@ -16,7 +16,7 @@ set options [list \
 {-v -volt}     volt     {1}      {set voltage, V}\
 {-o -ovp}      ovp      {1}      {set over-voltage protection }\
 {-m -max_rate} max_rate {1}      {max rate}\
-{-t -min_t_step} min_t_step {0.2} {min t step}\
+{-t -min_t_step} min_t_step {0.5} {min t step}\
 ]
 
 #############################################################
@@ -25,7 +25,8 @@ itcl::class SweepController {
   variable dev;  # device implementation handler
   variable dev2; # device implementation handler -- 2nd chan
   variable rh;   # ramping loop handler
-  variable curr; # current
+  variable cs1;  # set current - 1st chan
+  variable cs2;  # set current - 2nd chan
                                # set and measured current, A
   variable ps_dev
   variable ps_dev2
@@ -70,24 +71,31 @@ itcl::class SweepController {
   ######################################
 
   # set current for both channels (internal)
-  method set_curr {c1 c2 ch val} {
-    if {$ch == 1} { $dev  set_curr [expr {$val-$c2}] }\
-    else          { $dev2 set_curr [expr {$val-$c1}] }
+  method set_curr {ch val} {
+    if {$ch == 1} { set cs1 [expr {$val-$cs2}]; $dev set_curr $cs1 }\
+    else          { set cs2 [expr {$val-$cs1}]; $dev2 set_curr $cs2 }
   }
 
-  # get current (sum for both channels) and voltage (1st channel)
-  method get_curr {}    {
-    set c [ $dev get_curr ]
+  # measured current (sum for both channels)
+  method get_mcurr {}    {
+    set c1 [ $dev get_curr ]
     if {$ps_dev2 != {}} {
       set c2 [$dev2 get_curr]
-      set c [expr {$c + $c2}]
+      set c1 [expr {$c1 + $c2}]
     }
-    return $c
+    return $c1
   }
+
+  # set gurrent
+  method get_scurr {} {
+    return [expr $cs1+$cs2]
+  }
+
+  # voltage (1st channel only)
   method get_volt {} { return [ $dev get_volt ]}
 
   # Return list of commands which can be run from stdin.
-  method list {} {return {list sweep sweep_stop reset get_curr get_volt} }
+  method list {} {return {list sweep sweep_stop reset get_scurr get_mcurr get_volt} }
 
   ######################################
   # stop sweep and reset device
@@ -101,12 +109,15 @@ itcl::class SweepController {
 
     $dev reset $volt $ovp
     if {$ps_dev2 != {}} { $dev2 reset $volt $ovp }
-    set curr [get_curr]
+
+    set cs1 [ $dev get_curr ]
+    if {$ps_dev2 != {}} { set cs2 [$dev2 get_curr] } else {set cs2 0}
+
     return
   }
 
   ######################################
-  # stop sweep and reset device
+  # stop sweep
   method sweep_stop {} {
     if {$rh != {} && $db_dev != {} && $db_val != {} } {
       $db_dev cmd "put $db_ann now sweep_stop"
@@ -119,6 +130,7 @@ itcl::class SweepController {
   ######################################
   method sweep {dest rate {first 1}} {
 
+    set t1 [clock milliseconds]
     # write annotation in the beginning of the sweep
     if {$first && $db_dev != {} && $db_ann != {} } {
       $db_dev cmd "put $db_ann now sweep to $dest A at $rate A/s"
@@ -150,17 +162,18 @@ itcl::class SweepController {
     if {$rate > $max_rate} {set rate $max_rate}
 
     # put current value in the database
-    set c1 [ $dev get_curr ]
-    if {$ps_dev2 != {}} { set c2 [$dev2 get_curr] } else {set c2 0}
-    set curr_meas [expr {$c1 + $c2}]
+    set cm1 [ $dev get_curr ]
+    if {$ps_dev2 != {}} { set cm2 [$dev2 get_curr] } else {set cm2 0}
+    set cm [expr {$cm1+$cm2}]
+    set cs [expr {$cs1+$cs2}]
 
     if { $db_dev != {} && $db_val != {}} {
-      $db_dev cmd "put $db_val now $curr_meas $curr [get_volt]"
+      $db_dev cmd "put $db_val now $cm $cs [get_volt]"
       $db_dev cmd "sync"
     }
 
     # find sweep direction
-    if {$curr < $dest} {set dir 1} else {set dir -1}
+    if {$cs < $dest} {set dir 1} else {set dir -1}
 
 
 
@@ -184,52 +197,76 @@ itcl::class SweepController {
     # set current step
     set di2 [expr {1.0*$dir*$rate*$dt}]
 
+
+
     # find channel we want to sweep
     set ch 1
     if {$ps_dev2 != {} &&\
-       (($dir==1  && $curr-$c1+$di2 < $max_i2) ||\
-        ($dir==-1 && $curr-$c1+$di2 > $min_i2)) } {
+       (($dir==1  && $cs2 < $max_i2) ||\
+        ($dir==-1 && $cs2 > $min_i2)) } {
       set ch 2
       set dt $dt2
       set di $di2
+
+      # make shorter step if we are close to ch2 limit
+      if {$dir==1  && $cs2+$di > $max_i2} {
+        set di [expr {$max_i2-$cs2}]
+        set dt [expr {1.0*$dir*$di/$rate}]
+      }
+      if {$dir==-1 && $cs2+$di < $min_i2} {
+        set di [expr {-($cs2-$min_i2)}]
+        set dt [expr {1.0*$dir*$di/$rate}]
+      }
     }
 
 
     # stop ramping if the real current is outside the tolerance
-    set tolerance  [expr max($tolerance,$tolerance2)]
 
-    if { abs($curr_meas-$curr) > $tolerance } {
-      set curr $curr_meas
+    if { abs($cm1-$cs1) > $tolerance ||\
+         abs($cm2-$cs2) > $tolerance2} {
+      set cs1 $cm1
+      set cs2 $cm2
       if { $db_dev != {} && $db_ann != {}} {
-        $db_dev cmd "put $db_ann now current jump to $curr"
+        $db_dev cmd "put $db_ann now current jump to $cm"
         $db_dev cmd "sync"
       }
       return
     }
 
-    # calculate time step in ms and set up ramping loop
-    set dt_ms [expr {round(1000*$dt)}]
 
     # stop ramping if we are near the destination
-    if { [expr {abs($curr-$dest)}] < [expr {abs($di)}] } {
-      set_curr $c1 $c2 $ch $dest
+    if { [expr {abs($cs-$dest)}] < [expr {abs($di)}] } {
+      set_curr $ch $dest
+
       # normal delay between current setting and measurement
+      set t2 [clock milliseconds]
+      set dt_ms [expr {round(1000*$dt) - ($t2-$t1)}]
+      if {$dt_ms <0 } {set dt_ms 0}
       after $dt_ms
-      set curr [get_curr]
+
+      set cm1 [ $dev get_curr ]
+      if {$ps_dev2 != {}} { set cm2 [$dev2 get_curr] } else {set cm2 0}
+      set cm [expr {$cm1 + $cm2}]
+      set cs [expr {$cs1 + $cs2}]
+
       if { $db_dev != {} && $db_val != {}} {
-        $db_dev cmd "put $db_val now $curr $dest [get_volt]"
+        $db_dev cmd "put $db_val now $cm $cs [get_volt]"
         $db_dev cmd "sync"
       }
       if { $db_dev != {} && $db_ann != {}} {
-        $db_dev cmd "put $db_ann now sweep finished at $curr"
+        $db_dev cmd "put $db_ann now sweep finished at $cs"
         $db_dev cmd "sync"
       }
       return
     }
 
     # change the current
-    set curr [expr {$curr + 1.0*$dir*$rate*$dt}]
-    set_curr $c1 $c2 $ch $curr
+    set_curr $ch [expr {$cs + 1.0*$dir*$rate*$dt}]
+
+    # calculate time step in ms and set up ramping loop
+    set t2 [clock milliseconds]
+    set dt_ms [expr {round(1000*$dt) - ($t2-$t1)}]
+    if {$dt_ms <0 } {set dt_ms 0}
 
     set rh [after $dt_ms "$this sweep $dest $rate 0"]
     return
