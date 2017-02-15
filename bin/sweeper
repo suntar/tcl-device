@@ -94,8 +94,11 @@ itcl::class SweepController {
   # voltage (1st channel only)
   method get_volt {} { return [ $dev get_volt ]}
 
+  method get_stat {} { return [ $dev get_stat ]}
+
+
   # Return list of commands which can be run from stdin.
-  method list {} {return {list sweep sweep_stop reset get_scurr get_mcurr get_volt} }
+  method list {} {return {list sweep sweep_stop reset get_scurr get_mcurr get_volt get_stat} }
 
   ######################################
   # stop sweep and reset device
@@ -318,6 +321,15 @@ namespace eval current_supply_devices {
     method get_volt {} {
       return [$ps_dev cmd "VOUT1?"]
     }
+
+    method get_stat {} {
+      # error states
+      binary scan [$ps_dev cmd "STATUS?"] cu n
+      if {$n==80 || $n==63}  {return CC}
+      if {$n==79 || $n==81}  {return CV}
+      return "OFF"
+    }
+
   }
 
 
@@ -390,6 +402,30 @@ namespace eval current_supply_devices {
     }
     method get_volt {} {
       return [$ps_dev cmd "meas:volt? (@$N)"]
+    }
+    method get_stat {} {
+      # error states
+      set n [$ps_dev cmd "stat:ques:cond? (@$N)"]
+      if {! [string is integer $n] } {return {}}
+      if {$n & 1} {return OV}
+      if {$n & 2} {return OC}
+      if {$n & 4} {return PF}
+      if {$n & 8} {return CP+}
+      if {$n & 16} {return OT}
+      if {$n & 32} {return CP-}
+      if {$n & 64} {return OV-}
+      if {$n & 128} {return LIM+}
+      if {$n & 256} {return LIM-}
+      if {$n & 512} {return INH}
+      if {$n & 1024} {return UNR}
+      if {$n & 2048} {return PROT}
+      if {$n & 4096} {return OSC}
+      set n [$ps_dev cmd "stat:oper:cond? (@$N)"]
+      if {! [string is integer $n] } {return {}}
+      if {$n & 1} {return CV}
+      if {$n & 2} {return CC}
+      if {$n & 4} {return OFF}
+      return ""
     }
   }
 
