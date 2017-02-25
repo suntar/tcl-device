@@ -145,7 +145,7 @@ itcl::class graphene {
     set ret {}
     while {1} {
       set l [gets $dev]
-      if { [regexp {^Error: (.*)} $l e ] } { error $e }
+      if { [regexp {^Error: (.*)} $l e0 e1] } {error $e1 }
       if { [regexp {^OK$} $l] } { return $ret }
       lappend ret $l
     }
