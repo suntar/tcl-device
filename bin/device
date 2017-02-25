@@ -1,0 +1,51 @@
+#!/usr/bin/tclsh
+
+# general cmdline interface for device library
+
+package require Device 1.4
+package require ParseOptions 2.0
+
+#############################################################
+## Command line options:
+set options [list \
+{-d -dev}      dev   {}  {device}\
+{-l -lock}     lock  0   {lock the device}\
+]
+
+#############################################################
+
+itcl::class DeviceController {
+
+  variable dev
+  variable lock
+
+  constructor {opts} {
+    #Parse options.
+    global options
+    parse_options "sweeper" $opts $options
+
+    if {$dev  == {} } { error "Use -dev option to specify the device" }
+    Device $dev
+    if { $lock } {$dev lock}
+  }
+
+  destructor {
+    if { $lock } {$dev unlock}
+  }
+
+  ######################################
+
+  # set current for both channels (internal)
+  method write     {args} { return [$dev write      {*}$args]}
+  method cmd       {args} { return [$dev cmd        {*}$args]}
+  method cmd_read  {args} { return [$dev cmd_read   {*}$args]}
+  method read      {} { return [$dev read]}
+  method lock      {} { return [$dev lock]}
+  method unlock    {} { return [$dev unlock]}
+  method get_model {} { return [$dev get_model]}
+  method list {} {return {list read write cmd cmd_read lock unlock get_model}}
+
+}
+
+
+cli::run DeviceController $argv
