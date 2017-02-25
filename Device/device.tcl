@@ -57,36 +57,41 @@ itcl::class Device {
 
   ####################################################################
   # run command, read response if needed
-  method write {msg} {
-    set dd [after 1000 { puts "Device locking timeout"; return }]
+  method write {args} {
+    set dd [after 1000 { error "Device locking timeout"; return }]
     ::lock io_$name
     after cancel $dd
-    $dev write $msg
+    set e [catch {set ret [$dev write $args]}]
     ::unlock io_$name
+    if {$e} {error $::errorInfo}
     return {}
   }
 
   ####################################################################
   # run command, read response if needed
-  method cmd {msg} {
-    set dd [after 1000 { puts "Device locking timeout"; return }]
+  method cmd {args} {
+    set dd [after 1000 { error "Device locking timeout"; return }]
     ::lock io_$name
     after cancel $dd
-    set ret [ $dev cmd $msg ]
+    set e [catch {set ret [$dev cmd $args]}]
     ::unlock io_$name
+
+    if {$e} {error $::errorInfo}
     return $ret
   }
   # alias
-  method cmd_read {msg} { cmd $msg }
+  method cmd_read {args} { cmd $args }
 
   ####################################################################
   # read response
   method read {} {
-    set dd [after 1000 { puts "Device locking timeout"; return }]
+    set dd [after 1000 { error "Device locking timeout"; return }]
     ::lock io_$name
     after cancel $dd
-    set ret [$dev read ]
+    set e [catch {set ret [$dev read]}]
     ::unlock io_$name
+
+    if {$e} {error $::errorInfo}
     return $ret
   }
 

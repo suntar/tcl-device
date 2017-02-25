@@ -38,7 +38,7 @@ namespace eval cli {
     if {[catch {set ret [$dev {*}$line]}]} {
       cli::print_err
     } else {
-      puts $ret
+      puts {*}$ret
       puts OK
     }
   }

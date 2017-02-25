@@ -56,9 +56,9 @@ itcl::class gpib_prologix {
     }
   }
   # write to device without reading answer
-  method write {msg} {
+  method write {args} {
     set_addr
-    puts $dev $msg
+    puts $dev {*}$args
     flush $dev
   }
   # read from device
@@ -67,9 +67,10 @@ itcl::class gpib_prologix {
     return [read_line_nb $dev $read_timeout]
   }
   # write and then read
-  method cmd {msg} {
+  method cmd {args} {
     set_addr
-    write $msg
+    puts $dev {*}$args
+    flush $dev
     return [read_line_nb $dev $read_timeout]
   }
 }
@@ -94,8 +95,8 @@ itcl::class lxi_scpi_raw {
     ::close $dev
   }
   # write to device without reading answer
-  method write {msg} {
-    puts $dev $msg
+  method write {args} {
+    puts $dev {*}$args
     flush $dev
   }
   # read from device
@@ -103,8 +104,8 @@ itcl::class lxi_scpi_raw {
     return [read_line_nb $dev $read_timeout]
   }
   # write and then read
-  method cmd {msg} {
-    write $msg
+  method cmd {args} {
+    write {*}$args
     return [read_line_nb $dev $read_timeout]
   }
 }
@@ -119,9 +120,9 @@ itcl::class gpib {
     set dev [gpib_device gpib::$name {*}$pars]
   }
   destructor { gpib_device delete $dev }
-  method write {msg} { $dev write $msg }
+  method write {args} { $dev write {*}$args }
   method read {} { return [$dev read ] }
-  method cmd {msg} { return [$dev cmd_read $msg ] }
+  method cmd {args} { return [$dev cmd_read {*}$args ] }
 }
 
 ###########################################################
@@ -139,8 +140,8 @@ itcl::class graphene {
     ::close $dev
   }
   # write command, read response until OK or Error line
-  method cmd {msg} {
-    puts $dev $msg
+  method cmd {args} {
+    puts $dev {*}$args
     set ret {}
     while {1} {
       set l [gets $dev]
@@ -164,15 +165,15 @@ itcl::class pico_rec {
     read_line_nb $dev $open_timeout
   }
   destructor {::close $dev}
-  method write {msg} {
-    puts $dev $msg
+  method write {args} {
+    puts $dev {*}$args
     flush $dev
   }
   method read {} {
     return [read_line_nb $dev $read_timeout]
   }
-  method cmd {msg} {
-    puts $dev $msg
+  method cmd {args} {
+    puts $dev {*}$args
     flush $dev
     return [read_line_nb $dev $read_timeout]
   }
@@ -198,8 +199,8 @@ itcl::class tenma_ps {
     ::close $dev
   }
   # write to device without reading answer
-  method write {msg} {
-    puts -nonewline $dev $msg; # no newline!
+  method write {args} {
+    puts -nonewline $dev {*}$args; # no newline!
     after $del
     flush $dev
   }
@@ -209,8 +210,8 @@ itcl::class tenma_ps {
     return [::read $dev $bufsize]
   }
   # write and then read
-  method cmd {msg} {
-    puts -nonewline $dev $msg
+  method cmd {args} {
+    puts -nonewline $dev {*}$args
     flush $dev
     after $del
     return [::read $dev $bufsize]
