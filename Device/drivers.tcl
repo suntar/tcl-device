@@ -154,7 +154,33 @@ itcl::class graphene {
 }
 
 ###########################################################
-# pico_rec program. Parameter ptring is a command name
+# Simple command-line interface. Parameter string is a command name
+itcl::class cli_simple {
+  variable dev
+  variable read_timeout 1000
+  constructor {pars} {
+    set dev [::open "| $pars" RDWR]
+    fconfigure $dev -buffering line
+  }
+  destructor { ::close $dev }
+  # write command, read response until OK or Error line
+  method write {args} {
+    puts $dev {*}$args
+    flush $dev
+  }
+  method read {} {
+    return [read_line_nb $dev $read_timeout]
+  }
+  method cmd {args} {
+    puts $dev {*}$args
+    flush $dev
+    return [read_line_nb $dev $read_timeout]
+  }
+}
+
+
+###########################################################
+# pico_rec program. Parameter string is a command name
 itcl::class pico_rec {
   variable dev
   variable open_timeout 3000
