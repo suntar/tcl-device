@@ -22,7 +22,7 @@ itcl::class DeviceController {
   constructor {opts} {
     #Parse options.
     global options
-    parse_options "sweeper" $opts $options
+    parse_options "device" $opts $options
 
     if {$dev  == {} } { error "Use -dev option to specify the device" }
     Device $dev
