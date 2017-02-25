@@ -117,7 +117,7 @@ itcl::class gpib {
   variable dev
   constructor {pars} {
     package require GpibLib
-    set dev [gpib_device gpib::$name {*}$pars]
+    set dev [gpib_device #auto {*}$pars]
   }
   destructor { gpib_device delete $dev }
   method write {args} { $dev write {*}$args }
