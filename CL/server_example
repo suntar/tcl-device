@@ -1,0 +1,63 @@
+#!/usr/bin/tclsh
+
+source cl_server.tcl
+
+# server example:
+# writes messages on stopping/starting
+# support commands for reading/writing value v into a slot k=0..9:
+#  write k v
+#  read k
+
+itcl::class TestSrv {
+  variable var
+
+  ## Start server, parse parameters.
+  ## Use tcl error command to report errors.
+  ## Use puts here, care about protecting special symbol yourself.
+  constructor {args} {
+    if {[llength {*}$args] != 0} {error "Unknown server parameters: $args"}
+    puts "Welcome, dear user!"
+    puts "Please, type \"help\" if you do not know what to do."
+  }
+
+  ## stop the server
+  destructor {
+    puts stderr "Stopping the server"
+  }
+
+  ## these methods can be executed from the command line interface:
+  method list {} {
+    return {read write list help}
+  }
+
+  ## read command: return value from $var($k)
+  method read {k} {
+    return "$var($k)"
+  }
+
+  ## write command: put value into $var($k), $k=0..9
+  method write {k v} {
+    if {[string is integer -strict $k] && $k>=0 && $k<10} {
+      set var($k) "$v"
+    } else {
+      error "k must be integer between 0 and 9"
+    }
+    return
+  }
+
+  ## write command: put value into $var($k), $k=0..9
+  method help {} {
+    return\
+{server_example -- an example of the command-line interface program.
+Commands:
+  write <k> <v> -- write value v into a memory slot k=0..9
+  read <k>      -- read value from a memory slot k
+  list -- list all commands
+  help -- show this message
+# this line starts with a special symbol, just for tests.
+}
+  }
+
+}
+
+cl_server::run TestSrv $argv
