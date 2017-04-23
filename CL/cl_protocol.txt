@@ -23,25 +23,50 @@ Answer of the server is a few lines of text, followed by '#Error:
 <message>' or '#OK' line. Lines of the answer text starting with the
 special symbol should be protected by doubling the symbol.
 
-Conversation example:
+======================================================================
+Conversation example (see server_example program):
+======================================================================
 
-> ./server example
+$ ./server_example
 #CL001
 Welcome, dear user!
-type "help" to see command list.
+Please, type "help" if you do not know what to do.
 #OK
 h
-#Error: 
-text1
-text2
+#Error: Unknown command: h
+help
+server_example -- an example of the command-line interface program.
+Commands:
+  write <k> <v> -- write value v into a memory slot k=0..9
+  read <k>      -- read value from a memory slot k
+  list -- list all commands
+  help -- show this message
+## this line starts with a special symbol, just for tests.
+
 #OK
-#
-
-##text
+write 1 abc
 #OK
-#
+read
+#Error: wrong # args: should be "testSrv0 read k"
+read 1
+abc
+#OK
 
+======================================================================
+TCL interface
+======================================================================
 
+There is a simple tcl library to implement the protocol. To write the
+server create an Itcl class with all needed commands (each gets any
+number of argumets and returns answer or throws an error) and "list"
+command which returns all command names which should be available through
+the interface. Then run:
 
+  cl_server::run $server_class $opts
 
+To create a connection to a server:
+  cl_client conn $prog_name
+
+and run commands
+  conn cmd <command>
 

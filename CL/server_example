@@ -26,6 +26,8 @@ itcl::class TestSrv {
   }
 
   ## these methods can be executed from the command line interface:
+  ## note that you should use return but not puts, then the library will
+  ## care about protecting special symbols
   method list {} {
     return {read write list help}
   }
