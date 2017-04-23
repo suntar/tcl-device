@@ -90,7 +90,7 @@ itcl::class ForkPulseDriver {
     $osc_dev read
 
     set del [expr {1.2*$cnt/$f0}]
-    set out [exec pico_filter -T $del -F 30000 -G 34000 -f fork data/sig.dat ]
+    set out [exec pico_filter -T $del -F 30000 -G 34000 -f fit data/sig.dat ]
     exec pico_filter -f pnm data/sig.dat | pnmtopng > data/sig.png
     exec pico_filter -w 8192 -f sfft_pnm -T $del -F 30000 -G 34000 data/sig.dat | pnmtopng > data/sig.fft.png
 
