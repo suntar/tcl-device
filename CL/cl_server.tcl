@@ -27,11 +27,6 @@ namespace eval cl_server {
     puts "${cl_server::ch}Error: $e"
   }
 
-  proc print_prompt {} {
-#    puts -nonewline "${cl_server::ch}>"
-#    flush stdout
-  }
-
   # read request from stdin and write answer
   proc read_cmd {srv} {
     gets stdin line
@@ -46,18 +41,15 @@ namespace eval cl_server {
     # check if the first word is a valid command:
     if {[catch {set lst [$srv list]}]} {
       cl_server::print_err
-      cl_server::print_prompt
       return
     }
     if { $cmd ni $lst} {
       puts "${cl_server::ch}Error: Unknown command: $cmd"
-      cl_server::print_prompt
       return
     }
     # run server method, return its output followed by OK or an Error:
     if {[catch {set ret [$srv {*}$line]}]} {
       cl_server::print_err
-      cl_server::print_prompt
       return
     }
     if {$ret ne {}} {
@@ -66,7 +58,6 @@ namespace eval cl_server {
       puts $ret
     }
     puts "${cl_server::ch}OK"
-    cl_server::print_prompt
     return
   }
 
@@ -79,7 +70,6 @@ namespace eval cl_server {
       exit
     }
     puts "${cl_server::ch}OK"
-    cl_server::print_prompt
 
     # read requests, run commands
     fconfigure stdin -buffering line

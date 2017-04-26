@@ -14,10 +14,12 @@ itcl::class TestSrv {
   ## Start server, parse parameters.
   ## Use tcl error command to report errors.
   ## Use puts here, care about protecting special symbol yourself.
-  constructor {args} {
-    if {[llength {*}$args] != 0} {error "Unknown server parameters: $args"}
+  constructor {t} {
+    if {$t == {}} {set t 0}
+    if {![string is integer -strict $t] || $t<0} { error "argument should be a positive integer" }
     puts "Welcome, dear user!"
     puts "Please, type \"help\" if you do not know what to do."
+    after $t
   }
 
   ## stop the server
@@ -29,7 +31,7 @@ itcl::class TestSrv {
   ## note that you should use return but not puts, then the library will
   ## care about protecting special symbols
   method list {} {
-    return {read write list help}
+    return {read write echo wait list help}
   }
 
   ## read command: return value from $var($k)
@@ -47,6 +49,17 @@ itcl::class TestSrv {
     return
   }
 
+  ## wait for t milliseconds
+  method wait {t} {
+    after $t
+    return
+  }
+
+  ## return all arguments
+  method echo {args} {
+    return $args
+  }
+
   ## write command: put value into $var($k), $k=0..9
   method help {} {
     return\
@@ -54,9 +67,10 @@ itcl::class TestSrv {
 Commands:
   write <k> <v> -- write value v into a memory slot k=0..9
   read <k>      -- read value from a memory slot k
+  echo <...>    -- return all arguments
+  wait <t>      -- wait for t milliseconds
   list -- list all commands
   help -- show this message
-# this line starts with a special symbol, just for tests.
 }
   }
 
