@@ -15,8 +15,9 @@ proc test_res {cmd res} {
 }
 
 
-test_err {cl_client clx "./server_example a"} "Unknown server parameters: a"
-test_res {cl_client cl1 "./server_example"}   "cl1"
+test_res {cl_client cl1 "./server_example" } "cl1"
+test_err {cl_client clx "./server_example a"} "argument should be a positive integer"
+
 
 test_err {cl1 cmd a}            {Unknown command: a}
 test_err {cl1 cmd "read 0"}     {can't read "var(0)": no such variable}
@@ -24,16 +25,21 @@ test_err {cl1 cmd "write a"}    {wrong # args: should be "testSrv0 write k v"}
 test_err {cl1 cmd "write n v"}  {k must be integer between 0 and 9}
 test_err {cl1 cmd "write 10 v"} {k must be integer between 0 and 9}
 
-test_res {cl1 cmd "list"}       {{read write list help}}
+test_res {cl1 cmd "list"}       {{read write echo wait list help}}
 test_res {cl1 cmd "write 0 1"}  {}
 test_res {cl1 cmd "read 0"}     {1}
 
 # check how the special symbol is protected
-test_res {cl1 cmd "write 1 #1"} {}
-test_res {cl1 cmd "read 1"}     {{#1}}
+test_res {cl1 cmd "write 1 #1"}  {}
+test_res {cl1 cmd "read 1"}      {{#1}}
 test_res {cl1 cmd "write 1 ##1"} {}
-test_res {cl1 cmd "read 1"}     {{##1}}
+test_res {cl1 cmd "read 1"}      {{##1}}
 test_res {cl1 cmd "write 1 #1#"} {}
-test_res {cl1 cmd "read 1"}     {{#1#}}
+test_res {cl1 cmd "read 1"}      {{#1#}}
 
+test_res {cl1 cmd "wait 50"}     {}
 
+test_res {cl1 cmd "echo #"}      {{#}}
+
+test_err {cl1 cmd "wait 200"}    {}
+test_res {cl1 cmd "echo #"}      {{#}}

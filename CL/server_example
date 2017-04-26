@@ -57,7 +57,7 @@ itcl::class TestSrv {
 
   ## return all arguments
   method echo {args} {
-    return $args
+    return {*}$args
   }
 
   ## write command: put value into $var($k), $k=0..9
