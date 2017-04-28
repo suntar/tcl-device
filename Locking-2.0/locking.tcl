@@ -8,7 +8,7 @@ proc lock {name} {
   set fdir  "/tmp/tcl_locks"
   if { ! [file exists $fdir] } {
     file mkdir $fdir
-    chmod 777 $fdir
+    file attributes $fdir -permissions 0777
   }
 
   # check lockfile, wait
