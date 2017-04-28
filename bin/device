@@ -2,7 +2,7 @@
 
 # general cmdline interface for device library
 
-package require Device 1.4
+package require Device 1.5
 package require ParseOptions 2.0
 
 #############################################################
@@ -48,4 +48,4 @@ itcl::class DeviceController {
 }
 
 
-cli::run DeviceController $argv
+spp_server::run DeviceController $argv
