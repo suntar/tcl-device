@@ -11,7 +11,7 @@ human-readable form if possible.
 
 When connection is opened, server writes a line with the special symbol
 ('#' in this example, but it can be any symbol), protocol name and
-version: "#CL001". Then it can write some text for the user which can be
+version: "#SPP001". Then it can write some text for the user which can be
 ignored. Then it either writes '#Error: <message>' and exits or writes
 '#OK' and start listening for user requests. Simbol '#' here is a special
 symbol which was selected in the beginning of the conversation.
@@ -21,7 +21,7 @@ TODO: splitting arguments, quoting, several lines...
 
 Answer of the server is a few lines of text, followed by '#Error:
 <message>' or '#OK' line. Lines of the answer text starting with the
-special symbol should be protected by doubling the symbol.
+'#' symbol should be protected by doubling the symbol.
 TODO: timeouts, safe closing of the channel...
 
 ======================================================================
@@ -29,7 +29,7 @@ Conversation example (see server_example program):
 ======================================================================
 
 $ ./server_example
-#CL001
+#SPP001
 Welcome, dear user!
 Please, type "help" if you do not know what to do.
 #OK

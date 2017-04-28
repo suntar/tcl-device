@@ -14,7 +14,7 @@ mult_hp   hp_3478a          gpib            -board 0 -address 22 -trimright "\r\
 capbr     ah_2500a          gpib            -board 0 -address 28 -timeout 1000
 gen0      agilent_33511b    gpib            -board 0 -address 16 -trimright "\r\n"
 
-db        graphene          graphene        graphene interactive
-db_local  graphene          graphene        graphene -d . interactive
+db        graphene          spp        graphene -i
+db_local  graphene          spp        graphene -i -d .
 fork0     fork_pulse        fork_pulse      -gen gen0 -osc osc0
 test      test              test_dev        ""

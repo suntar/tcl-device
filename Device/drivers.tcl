@@ -135,6 +135,11 @@ itcl::class graphene {
   constructor {pars} {
     set dev [::open "| $pars" RDWR]
     fconfigure $dev -buffering line
+    while {1} {
+      set l [gets $dev]
+      if { [regexp {^#Error: (.*)} $l e0 e1] } {error $e1 }
+      if { [regexp {^#OK$} $l] } { return }
+    }
   }
   destructor {
     ::close $dev
@@ -145,8 +150,8 @@ itcl::class graphene {
     set ret {}
     while {1} {
       set l [gets $dev]
-      if { [regexp {^Error: (.*)} $l e0 e1] } {error $e1 }
-      if { [regexp {^OK$} $l] } { return $ret }
+      if { [regexp {^#Error: (.*)} $l e0 e1] } {error $e1 }
+      if { [regexp {^#OK$} $l] } { return $ret }
       lappend ret $l
     }
     return $ret
@@ -154,28 +159,10 @@ itcl::class graphene {
 }
 
 ###########################################################
-# Simple command-line interface. Parameter string is a command name
-itcl::class cli_simple {
-  variable dev
-  variable read_timeout 1000
-  constructor {pars} {
-    set dev [::open "| $pars" RDWR]
-    fconfigure $dev -buffering line
-  }
-  destructor { ::close $dev }
-  # write command, read response until OK or Error line
-  method write {args} {
-    puts $dev {*}$args
-    flush $dev
-  }
-  method read {} {
-    return [read_line_nb $dev $read_timeout]
-  }
-  method cmd {args} {
-    puts $dev {*}$args
-    flush $dev
-    return [read_line_nb $dev $read_timeout]
-  }
+# Simple pipe protocol. Parameter string is a command name
+itcl::class spp {
+  inherit ::spp_client
+  constructor {pars} { ::spp_client::constructor "$pars" } { }
 }
 
 

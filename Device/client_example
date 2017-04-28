@@ -1,6 +1,6 @@
 #!/usr/bin/tclsh
 
-source cl_client.tcl
+source spp_client.tcl
 
 # test that command returns an error
 proc test_err {cmd res} {
@@ -15,8 +15,8 @@ proc test_res {cmd res} {
 }
 
 
-test_res {cl_client cl1 "./server_example" } "cl1"
-test_err {cl_client clx "./server_example a"} "argument should be a positive integer"
+test_res {spp_client cl1 "./server_example" } "cl1"
+test_err {spp_client clx "./server_example a"} "argument should be a positive integer"
 
 
 test_err {cl1 cmd a}            {Unknown command: a}

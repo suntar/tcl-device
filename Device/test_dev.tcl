@@ -1,9 +1,7 @@
 #!/usr/bin/tclsh
 
 lappend auto_path ..
-package require Device 1.2
-
-
+package require Device 1.5
 
 
 #Device lockin0
@@ -16,16 +14,16 @@ package require Device 1.2
 #puts [ps0 cmd *IDN?]
 
 #Device mult_ag
-#puts [mult_ag cmd_read "*IDN?"]
+#puts [mult_ag cmd *IDN?]
 
 Device db_local
-db_local cmd_read "create test1 DOUBLE"
+db_local cmd create test2 DOUBLE
 
 #Device osc0
-#puts [osc0 cmd_read "chan_set"]
+#puts [osc0 cmd chan_set]
 
 #Device ps0
-#puts [ps0 cmd "chan_set"]
+#puts [ps0 cmd chan_set]
 
 
 
