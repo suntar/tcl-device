@@ -14,11 +14,14 @@ itcl::class spp_client {
 
   constructor {prog_name} {
     set conn [::open "| $prog_name" RDWR]
-    fconfigure $conn -buffering line
-    if {![regexp {^(.)SPP([0-9]+)$} [gets $conn] l ch ver]} {
-      error "unknown protocol"}
+    fconfigure $conn -buffering line -blocking yes
+    if { [eof $conn]} {
+      error "$prog_name: unknown protocol"}
+    set l [gets $conn]
+    if {![regexp {^(.)SPP([0-9]+)$} $l l ch ver]} {
+      error "$prog_name: unknown protocol"}
     if {$ver != 001} {
-      error "unknown protocol version"}
+      error "$prog_name: unknown protocol version"}
     read
   }
 

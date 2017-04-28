@@ -12,9 +12,7 @@ package require Itcl
 proc read_line_nb {dev timeout} {
   while {$timeout>0} {
     gets $dev res
-    if { [string length $res] } {
-      return $res
-    }
+    if { [string length $res] } { return $res }
     after 10
     set timeout [expr {$timeout-10}]
   }
@@ -126,70 +124,10 @@ itcl::class gpib {
 }
 
 ###########################################################
-# Graphene database. Parameter string is a command name for
-# running graphene interface:
-#   graphene -d . interactive
-#   ssh somehost graphene -d . interactive
-itcl::class graphene {
-  variable dev
-  constructor {pars} {
-    set dev [::open "| $pars" RDWR]
-    fconfigure $dev -buffering line
-    while {1} {
-      set l [gets $dev]
-      if { [regexp {^#Error: (.*)} $l e0 e1] } {error $e1 }
-      if { [regexp {^#OK$} $l] } { return }
-    }
-  }
-  destructor {
-    ::close $dev
-  }
-  # write command, read response until OK or Error line
-  method cmd {args} {
-    puts $dev {*}$args
-    set ret {}
-    while {1} {
-      set l [gets $dev]
-      if { [regexp {^#Error: (.*)} $l e0 e1] } {error $e1 }
-      if { [regexp {^#OK$} $l] } { return $ret }
-      lappend ret $l
-    }
-    return $ret
-  }
-}
-
-###########################################################
 # Simple pipe protocol. Parameter string is a command name
 itcl::class spp {
   inherit ::spp_client
   constructor {pars} { ::spp_client::constructor "$pars" } { }
-}
-
-
-###########################################################
-# pico_rec program. Parameter string is a command name
-itcl::class pico_rec {
-  variable dev
-  variable open_timeout 3000
-  variable read_timeout 1000
-
-  constructor {pars} {
-    set dev [::open "| pico_rec -d $pars" RDWR]
-    read_line_nb $dev $open_timeout
-  }
-  destructor {::close $dev}
-  method write {args} {
-    puts $dev {*}$args
-    flush $dev
-  }
-  method read {} {
-    return [read_line_nb $dev $read_timeout]
-  }
-  method cmd {args} {
-    puts $dev {*}$args
-    flush $dev
-    return [read_line_nb $dev $read_timeout]
-  }
 }
 
 ###########################################################
