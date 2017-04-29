@@ -3,7 +3,6 @@ tcl packages for my experimental computer
 ======================================================================
 ROTA packages:
 
-* xBLT -- extentions to TCL BLT library
 * GPIB -- tcl interface to linux-gpib library
 * ParseOptions
 * Daemon
