@@ -109,4 +109,4 @@ itcl::class ForkPulseDriver {
 
 #############################################################
 
-cli::run ForkPulseDriver $argv
+spp_server::run ForkPulseDriver $argv
