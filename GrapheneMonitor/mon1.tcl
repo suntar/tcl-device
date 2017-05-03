@@ -2,7 +2,7 @@
 
 # example of monitoring program
 lappend auto_path ..
-package require Graphene
+package require Device
 package require GrapheneMonitor
 
 source module_cpu_load.tcl
@@ -15,12 +15,11 @@ source module_lockin_sweep.tcl
 
 # local connection to the database, current folder
 
-set dbcon [graphene::open]
+Device db_local
 
-catch { graphene::cmd $dbcon "create he4s/lockin_sweep double" }
-#catch { graphene::cmd $dbcon "create test/therm double" }
+catch { db_local cmd create he4s/lockin_sweep double }
 
-graphene::monitor mon $dbcon
+graphene::monitor mon db_local
 mon configure -verb 1
 
 #mon add_module [therm2s #auto]

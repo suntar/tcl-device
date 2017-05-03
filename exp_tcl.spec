@@ -19,7 +19,7 @@ TCL packages for my experimental computer
 
 %build
 # build and install tcl packages
-for n in Graphene\
+for n in \
          GrapheneMonitor\
          ParseOptions-2.0\
          Prectime-1.1\

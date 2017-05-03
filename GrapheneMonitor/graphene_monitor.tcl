@@ -124,7 +124,7 @@ itcl::class monitor_module {
     set res [join $v0 " "]
     set $vvar $res
     if {$save} {
-      graphene::cmd $dbcon "put $dbname now $res"
+      if {$dbcon!={}} {$dbcon cmd put $dbname now {*}$res}
       set dt 0
     }
 
@@ -271,7 +271,7 @@ itcl::class monitor {
     }
     if {$sync_needed} {
       if {$verb} { puts "sync DB" }
-      graphene::cmd $dbcon sync
+      if {$dbcon!= {}} {$dbcon cmd sync}
     }
     set sh [after $sync $this do_sync]
   }
@@ -284,7 +284,6 @@ itcl::class monitor {
     if {$verb} { puts "close DB connection" }
     after cancel $sh; # stop db sync
     foreach m $modules { itcl::delete object $m }
-    graphene::close dbcon
   }
 
   method add_module {mod} {

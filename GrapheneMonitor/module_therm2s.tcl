@@ -2,8 +2,7 @@
 # Temperature measurement for 2nd sound experiment
 # AG34401A measures resistance (manual range needed?)
 # HP34401 measures applied voltage (to know current on the resistor)
-
-package require GpibLib
+package require Device
 
 itcl::class therm2s {
   inherit graphene::monitor_module
@@ -18,13 +17,13 @@ itcl::class therm2s {
     set atol   0
     set name   "Thermometer (R and U)"
     set cnames {R U}
-    set devR [gpib_device dev -board 0 -address 17 -trimright "\r\n"]
-    set devU [gpib_device hp3478a -board 0 -address 22 -trimright "\r\n"]
+    Device mult_ag
+    Device mult_hp
   }
 
   method get {} {
-    set R [$devR cmd_read meas:res?]
-    set U [$devU cmd_read F1RAZ1N5T3]
+    set R [mult_ag cmd meas:res?]
+    set U [mult_hp cmd F1RAZ1N5T3]
     return "$R $U"
   }
 }

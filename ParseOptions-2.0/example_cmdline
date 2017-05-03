@@ -3,12 +3,13 @@
 lappend auto_path ..
 package require ParseOptions 2.0
 
-set parsetable \
+set opts \
   [list {-f -format} fmt  {} {format}\
         {-d -descr}  desc {} {description}\
         -color       color red {color}]
-if {[catch {parse_options "myprog" \
-    $argv $parsetable} err]} { error $err }
+
+if {[catch {parse_options "myprog"\
+    $argv $opts} err]} { error $err }
 
 puts "fmt:   $fmt"
 puts "desc:  $desc"

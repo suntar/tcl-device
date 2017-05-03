@@ -1,0 +1,4 @@
+This is a copy of xblt::parse_options with
+option descriptions added and with a better help message.
+
+See examples in this folder

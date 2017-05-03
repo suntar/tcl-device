@@ -1,5 +1,6 @@
 # An example of graphene::monitor module.
 # Sweep frequency and measure signal by SR830 lock in
+package require Device
 
 itcl::class lockin_sweep {
   inherit graphene::monitor_module
@@ -14,7 +15,7 @@ itcl::class lockin_sweep {
     set name   "Lock-In sweeper"
     set cnames {F X Y}
 
-    set dev [gpib_device sr830 -board 0 -address 6 -trimright "\r\n"]
+    Device lockin
 
     set sweeper 1
     set smin 500
@@ -31,8 +32,8 @@ itcl::class lockin_sweep {
 
 
   method get {} {
-    set res [regexp -all -inline {[^,]+} [$dev cmd_read "SNAP? 9,1,2"]]
-    $dev write "FREQ $s0"
+    set res [regexp -all -inline {[^,]+} [lockin cmd SNAP? 9,1,2]]
+    lockin write FREQ $s0
     return $res
   }
 }

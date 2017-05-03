@@ -1,5 +1,5 @@
 # Monitoring Capacitance bridge
-package require GpibLib
+package require Device
 
 itcl::class capbr_v {
   inherit graphene::monitor_module
@@ -13,7 +13,7 @@ itcl::class capbr_v {
     set atol   {}
     set name   "Cap.br (multiple voltages)"
     set cnames {0.10V 0.25V 0.75V 1.5V 3.0V 7.5V 15.0V}
-    set dev [gpib_device capbridge -board 0 -address 28 -timeout 1000]
+    Device capbr
   }
 
   method start {} {
@@ -24,9 +24,9 @@ itcl::class capbr_v {
   method get {} {
     set ret {}
     foreach v $voltages {
-      $dev write "VOLT $v"
-      regexp {([0-9\.]+)} [$dev cmd_read "SH VOLT"] volt
-      set res [regexp -all -inline {\S+} [$dev cmd_read SI] ]
+      capbr write VOLT $v
+      regexp {([0-9\.]+)} [capbr cmd SH VOLT] volt
+      set res [regexp -all -inline {\S+} [capbr cmd SI] ]
       set cap [lindex $res 1]
       set los [lindex $res 4]
       if {![regexp {^[\d\.]+$} $cap]} {set cap 0; set los 0}
