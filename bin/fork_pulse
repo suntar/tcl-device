@@ -30,9 +30,9 @@ itcl::class ForkPulseDriver {
   variable db_ann
   variable datadir
 
-  variable f0 32870
+  variable f0 32760
   variable cnt 100
-  variable dt  1e-5 
+  variable dt  1e-5
   variable volt 10
   variable time 5
 
@@ -68,37 +68,37 @@ itcl::class ForkPulseDriver {
   }
 
   method set_gen {} {
-    $gen_dev write "BURST:STATE on"
-    $gen_dev write "BURST:MODE trig"
-    $gen_dev write "BURST:NCYC $cnt"
-    $gen_dev write "TRIG:SOURCE BUS"
-    $gen_dev write "FREQ $f0"
-    $gen_dev write "VOLT $volt"
-    $gen_dev write "OUTP ON"
+    $gen_dev write BURST:STATE on
+    $gen_dev write BURST:MODE trig
+    $gen_dev write BURST:NCYC $cnt
+    $gen_dev write TRIG:SOURCE BUS
+    $gen_dev write FREQ $f0
+    $gen_dev write VOLT $volt
+    $gen_dev write OUTP ON
   }
   method set_osc {} {
     ## A - signal, B - trigger
-    $osc_dev cmd_read "chan_set A 1 AC 0.05"
-    $osc_dev cmd_read "chan_set B 1 AC 10"
-    $osc_dev cmd_read "trig_set B 0.1 RISING 0"
+    $osc_dev cmd chan_set A 1 AC 0.05
+    $osc_dev cmd chan_set B 1 DC 10
+    $osc_dev cmd trig_set B 0.1 FALLING 0
   }
 
   method pulse {} {
     set N [expr {int(1.0*$time/$dt)}]
-    $osc_dev cmd_read "block A 1024 $N $dt data/sig.dat"
-    $gen_dev write "*TRG"
-    $osc_dev read
+    $osc_dev cmd block A 1024 $N $dt data/sig.dat
+    $gen_dev write *TRG
+    $osc_dev cmd wait
 
-    set del [expr {1.2*$cnt/$f0}]
-    set out [exec pico_filter -T $del -F 30000 -G 34000 -f fit data/sig.dat ]
-    exec pico_filter -f pnm data/sig.dat | pnmtopng > data/sig.png
-    exec pico_filter -w 8192 -f sfft_pnm -T $del -F 30000 -G 34000 data/sig.dat | pnmtopng > data/sig.fft.png
+    set out [exec sig_filter -F 30000 -G 34000 -f fit data/sig.dat ]
+    exec sig_filter -f pnm data/sig.dat | pnmtopng > data/sig.png
+    exec sig_filter -w 8192 -f sfft_pnm -F 30000 -G 34000 data/sig.dat | pnmtopng > data/sig.fft.png
+
 
     set tau [lindex $out 3]
-    set time [expr {$tau*5}]
+#    set time [expr {$tau*5}]
     if {$db_dev != {} && $db_val !={} } {
-      $db_dev cmd_read "put $db_val $out"
-      $db_dev cmd_read "sync"
+      $db_dev cmd put $db_val $out
+      $db_dev cmd sync"
     }
     return $out
   }
