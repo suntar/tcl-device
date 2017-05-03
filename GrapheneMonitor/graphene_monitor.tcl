@@ -1,8 +1,6 @@
-package provide GrapheneMonitor 1.1
+package provide GrapheneMonitor 1.2
 package require Itcl
 package require xBlt 3
-package require Prectime
-
 
 namespace eval graphene {
 
@@ -37,6 +35,8 @@ itcl::class monitor_module {
   variable dt  0; # time from previously saved point
   variable tim {}; # time array for the plot
   variable dat {}; # data arrays for the plot
+  variable timL {}; # same for the last point
+  variable datL {}; #
   variable w {};
 
   # Set module state. This function is run from the
@@ -103,16 +103,20 @@ itcl::class monitor_module {
     if {[llength $v0] == [llength $cnames]} {
       #create data vectors if needed
       if {[llength $cnames] != [llength $dat]} {
-        set tim [blt::vector create #auto]
+        set tim  [blt::vector create #auto]
+        set timL [blt::vector create #auto]
         set dat {}
         for {set i 0} {$i < [llength $cnames]} {incr i} {
-          lappend dat [blt::vector create #auto]
+          lappend dat  [blt::vector create #auto]
+          lappend datL [blt::vector create #auto]
           puts "[lindex dat $i] $i"
         }
       }
       # append values:
-      foreach D $dat V $v0 { $D append $V }
-      $tim append [prectime]
+      foreach D $dat  V $v0 { $D append $V }
+      foreach D $datL V $v0 { $D set $V }
+      $tim  append [expr 1e-6*[clock microseconds]]
+      $timL set [expr 1e-6*[clock microseconds]]
       # remove old values:
       if {[$tim length] > $nplot} {
         foreach D $dat {$D delete 0:99}
@@ -190,6 +194,27 @@ itcl::class monitor_module {
   method chrun {} {set srun [expr {$srun==0}]}
   method chdir {} {set sdir [expr {-$sdir}]}
 
+  method set_data {axis data_col} {
+    if {$axis==0} {
+      $w element configure data1 -xdata $data_col
+      $w element configure data2 -xdata $data_col
+#      $w element configure last1 -xdata ${data_col}L
+#      $w element configure last2 -xdata ${data_col}L
+      if {$data_col == $tim} {
+#        $w axis configure x -command fmt_time
+      } else {
+#        $w axis configure x -command {}
+      }
+    }
+    if {$axis==1} {
+      $w element configure data1 -ydata $data_col
+#      $w element configure last1 -ydata ${data_col}L
+    }
+    if {$axis==2} {
+      $w element configure data2 -ydata $data_col
+#      $w element configure last2 -ydata ${data_col}L
+    }
+  }
 
   # show pop-up window with a plot
   method plot {} {
@@ -199,55 +224,46 @@ itcl::class monitor_module {
     grid [ label .plot.name -text $name ]
     set w [blt::graph .plot.graph -highlightthickness 0 -bufferelements 0]
 
-    $w element create data1 -symbol {} -linewidth 2 -color red
-    $w element create data2 -symbol {} -linewidth 2 -color blue
-#    $w element create last1 -symbol circle -pixels 5 -linewidth 0 -color red
-#    $w element create last2 -symbol circle -pixels 5 -linewidth 0 -color blue
+    $w element create data1 -symbol {} -linewidth 1 -color red
+    $w element create data2 -symbol {} -linewidth 1 -color blue
+    $w element create last1 -symbol circle -pixels 3 -linewidth 0 -color red
+    $w element create last2 -symbol circle -pixels 3 -linewidth 0 -color blue
     $w legend configure -hide 1
 
-#    xblt::crosshairs $w
-#    xblt::measure $w
-#    xblt::zoomstack $w -scrollbutton 2
-#    xblt::readout $w
-
-    set xsel $tim
-    set ysel [lindex $dat 0]
-
-    set xsel [lindex $dat 0]
-    set ysel [lindex $dat 1]
-    set zsel [lindex $dat 2]
-
-    if {$xsel != ""} {
-      set xl [$xsel index end]
-      $w element configure data1 -xdata $xsel
-      $w element configure data2 -xdata $xsel
-#      $w element configure last1 -xdata $xl
-#      $w element configure last2 -xdata $xl
-#      $w axis configure x -title $vardata($xsel,l)
-      if {[string compare $xsel tim] == 0} {
-        $w axis configure x -command fmt_time
-      } else {
-      $w axis configure x -command {}
-      }
-    }
-    if {$ysel != ""} {
-      set yl [$ysel index end]
-      $w element configure data1 -ydata $ysel
-#      $w element configure last1 -ydata $yl
-      $w axis configure y -title TITLE
-    }
-
-    if {$zsel != ""} {
-      set zl [$zsel index end]
-      $w element configure data2 -ydata $zsel
-#      $w element configure last2 -ydata $zl
-    }
+    xblt::plotmenu $w
+    xblt::crosshairs $w
+    xblt::measure $w
+    xblt::zoomstack $w -scrollbutton 2
+    xblt::readout $w
 
     grid $w
+
+    grid [frame .plot.menubar -borderwidth 0 -takefocus 0]
+    menubutton .plot.menubar.menux -menu .plot.menubar.menux.m -text "X axis"  -indicatoron 1
+    menubutton .plot.menubar.menuy -menu .plot.menubar.menuy.m -text "Y1 axis" -indicatoron 1
+    menubutton .plot.menubar.menuz -menu .plot.menubar.menuz.m -text "Y2 axis" -indicatoron 1
+    menu .plot.menubar.menux.m
+    menu .plot.menubar.menuy.m
+    menu .plot.menubar.menuz.m
+    pack .plot.menubar.menux .plot.menubar.menuy .plot.menubar.menuz -side left
+    .plot.menubar.menux.m add command -label Time -command [list $this set_data 0 $tim]
+    .plot.menubar.menuy.m add command -label None -command [list $this set_data 1 {}]
+    .plot.menubar.menuz.m add command -label None -command [list $this set_data 2 {}]
+    for {set i 0} {$i < [llength $cnames]} {incr i} {
+      .plot.menubar.menux.m add command -label [lindex $cnames $i] -command [list $this set_data 0 [lindex $dat $i]]
+      .plot.menubar.menuy.m add command -label [lindex $cnames $i] -command [list $this set_data 1 [lindex $dat $i]]
+      .plot.menubar.menuz.m add command -label [lindex $cnames $i] -command [list $this set_data 2 [lindex $dat $i]]
+    }
+
     grid [ frame .plot.btns ] -sticky e
     grid [ button .plot.btns.b1 -text Clear -state normal -command "$this clear_plot" ]\
          [ button .plot.btns.b2 -text Close -state normal -command "destroy .plot" ] -sticky e
+
+    set_data 0 $tim
+    if {[llength $dat] > 0} {set_data 1 [lindex $dat 0]}
+    if {[llength $dat] > 1} {set_data 2 [lindex $dat 1]}
   }
+
   method clear_plot {} {
     foreach D $dat V $v0 { $D delete 0:end }
     $tim delete 0:end

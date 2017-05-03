@@ -4,7 +4,7 @@
 lappend auto_path ..
 lappend auto_path .
 package require Device
-package require GrapheneMonitor 1.1
+package require GrapheneMonitor 1.2
 
 source module_cpu_load.tcl
 source module_cpu_temp.tcl
