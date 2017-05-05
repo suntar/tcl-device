@@ -67,9 +67,11 @@ itcl::class gpib_prologix {
   # write and then read
   method cmd {args} {
     set_addr
-    puts $dev {*}$args
+    set cmd {*}$args
+    puts $dev $cmd
     flush $dev
-    return [read_line_nb $dev $read_timeout]
+    if [regexp {\?\s*$} $cmd] { return [read_line_nb $dev $read_timeout] }\
+    else {return ""}
   }
 }
 
@@ -103,8 +105,11 @@ itcl::class lxi_scpi_raw {
   }
   # write and then read
   method cmd {args} {
-    write {*}$args
-    return [read_line_nb $dev $read_timeout]
+    set cmd {*}$args
+    puts $dev $cmd
+    flush $dev
+    if [regexp {\?\s*$} $cmd] { return [read_line_nb $dev $read_timeout] }\
+    else {return ""}
   }
 }
 
@@ -120,7 +125,11 @@ itcl::class gpib {
   destructor { gpib_device delete $dev }
   method write {args} { $dev write {*}$args }
   method read {} { return [$dev read ] }
-  method cmd {args} { return [$dev cmd_read {*}$args ] }
+  method cmd {args} {
+    set cmd {*}$args
+    if [regexp {\?\s*$} $cmd] { return [$dev cmd_read {*}$args] }\
+    else {$dev write {*}$args; return ""}
+  }
 }
 
 ###########################################################
@@ -163,10 +172,12 @@ itcl::class tenma_ps {
   }
   # write and then read
   method cmd {args} {
-    puts -nonewline $dev {*}$args
+    set cmd [string toupper {*}$args]
+    puts -nonewline $dev $cmd
     flush $dev
     after $del
-    return [::read $dev $bufsize]
+    if {[regexp {\?\s*$} $cmd]>0} { return [::read $dev $bufsize] }\
+    else {return ""}
   }
 }
 ###########################################################

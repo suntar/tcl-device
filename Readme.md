@@ -1,4 +1,5 @@
 ### Device library
+---
 
 This is a tcl library for making complicated experimental setups.
 
@@ -20,29 +21,46 @@ Then one can do something like this:
 package require Device
 Device generator
 puts [generator cmd "*idn?"]
-`
 
 Note that library does not know anything about commands used by certain
 devices, it just provides connection.
 
+Library also provides IO locking (one device can be used by a few
+programs without collisions) and optional high-level locking (one program
+can lock a device for a long time).
 
-## Drivers (see `Device/drivers.tcl`)
+### Interface (see Device/device.tcl)
+---
 
-* gpib_prologix -- GPIB device connected through Prologix gpib2eth converter
+* Device <name> -- open a device <name>. The command <name> is created to access the device.
+* <name> read
+* <name> write
+* <name> cmd
+* <name> lock -- High-level lock. Lock lasts until the process is alive or until unlock
+                 command is run.
+* <name> unlock -- Unlock
 
-  parameters:
+In case of error during tcl error is called. Use catch to get it.
+
+### Drivers (see `Device/drivers.tcl`)
+---
+
+* gpib_prologix -- GPIB device connected through Prologix gpib2eth converter.
+
+  Parameters:
   *  -hostname -- converter hostname or ip-address
   *  -addr     -- device GPIB address
   *  -read_timeout -- read timeout, ms
 
-* lxi_scpi_raw -- LXI device connected via ethernet (SCPI raw connection via port 5025)
+* lxi_scpi_raw -- LXI device connected via ethernet (SCPI raw connection via port 5025).
 
-  parameters:
+  Parameters:
   * -hostname -- device hostname or ip-address
   * -read_timeout -- read timeout, ms
 
-* gpib -- Connection with linux-gpib library
-  parameters:
+* gpib -- Connection with linux-gpib library.
+
+  Parameters:
   * -timeout
   * -eot
   * -secondary
@@ -55,15 +73,18 @@ devices, it just provides connection.
   * -readymask
   * -waitready
 
-* spp -- Simple pipe protocol for programs
-  parameters: program name and arguments
+* spp -- Simple pipe protocol for programs.
+
+  Parameters: program name and arguments.
 
 * tenma_ps -- Tenma power supply. It is a serial port connection,
   but with specific delays and without newline characters.
-  parameters: character device (such as /dev/ttyACM0)
 
-====
+  Parameters: character device (such as /dev/ttyACM0).
+
+
 ### Simple pipe protocol, version 001
+---
 
 There are two programs, "server" and "client". Client runs the server
 program and communicate with it using unix pipes. All data are read and
@@ -135,11 +156,11 @@ and run commands
 
 See `Device/server_example` and `Device/client_example` programs.
 
-====
-### Programs which can be used as devices:
+
+## SPP programs which can be used as devices:
 
 All this programs supports Simple pipe protocol (SPP) and can be run
-from command line or Device library.
+from command line or through Device library.
 
 * graphene -- database (https://github.com/slazav/graphene)
 * pico_rec -- recording signals with Pico2440 oscilloscope (https://github.com/slazav/pico_osc)
@@ -147,3 +168,14 @@ from command line or Device library.
               from command line or remotely.
 * fork_pulse
 * sweeper
+
+
+## Remote communication
+
+You can easily add remote devices using spp interface. In the
+configuration file it can be written as
+
+lockin0          ssh <remote address> device -d lockin0
+graphene_remote  ssh <remote address> graphene -i
+
+(ssh access should be configured using keys, ssh-agent etc.)
