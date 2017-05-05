@@ -3,12 +3,17 @@
 ##   spp_server::run $server_class $opts
 ##
 ## $server_class is an itcl class name, $opts are options for its constructor.
-## The class should have methods
-##   list -- returns list of methods for use in the protocol.
-##   <other methods> including ones listed in the list method.
 ##
-## spp_server::run reads commands from stdin and runs corresponding methods.
-## Then #OK or #Error line is printed.
+## spp_server::int_type == 0:
+##   The class should have methods
+##     list -- returns list of methods for use in the protocol.
+##     <other methods> including ones listed in the list method.
+##   spp_server::run reads commands from stdin and runs corresponding methods.
+##   Then #OK or #Error line is printed.
+##
+## spp_server::int_type == 1:
+##   The class should have method cmd where all commands are passed as arguments
+##
 ## Printing messages should be done by spp_server::answer command.
 ##
 
@@ -17,6 +22,7 @@ package require Itcl
 namespace eval spp_server {
   set ch  {#}
   set ver {001}
+  set int_type 0
 
   # Extract and print first line of ::errorInfo
   proc _print_err {} {
@@ -35,7 +41,9 @@ namespace eval spp_server {
   proc answer {text} {
     if {$text eq {}} { return }
     regsub -all -line "^$spp_server::ch" $text "$spp_server::ch$spp_server::ch" text
-    puts $text
+    set res {}
+    append res $text
+    puts $res
   }
 
   # read request from stdin and write answer
@@ -47,22 +55,32 @@ namespace eval spp_server {
     # skip empty lines:
     if {$line == {}} {return}
 
-    set cmd [lindex $line 0]
-    # get list of commands,
-    # check if the first word is a valid command:
-    if {[catch {set lst [$srv list]}]} {
-      spp_server::_print_err
-      return
+    if {$spp_server::int_type == 0} {  ## interface type 0
+      set cmd [lindex $line 0]
+      # get list of commands,
+      # check if the first word is a valid command:
+      if {[catch {set lst [$srv list]}]} {
+        spp_server::_print_err
+        return
+      }
+      if { $cmd ni $lst} {
+        puts "${spp_server::ch}Error: Unknown command: $cmd"
+        return
+      }
+      # run server method, return its output followed by OK or an Error:
+      if {[catch {set ret [$srv {*}$line]}]} {
+        spp_server::_print_err
+        return
+      }
+    }\
+    else {  ## interface type 1
+      # run server method, return its output followed by OK or an Error:
+      if {[catch {set ret [$srv cmd {*}$line]}]} {
+        spp_server::_print_err
+        return
+      }
     }
-    if { $cmd ni $lst} {
-      puts "${spp_server::ch}Error: Unknown command: $cmd"
-      return
-    }
-    # run server method, return its output followed by OK or an Error:
-    if {[catch {set ret [$srv {*}$line]}]} {
-      spp_server::_print_err
-      return
-    }
+
     spp_server::answer $ret
     spp_server::_print_ok
     return

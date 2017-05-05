@@ -36,15 +36,11 @@ itcl::class DeviceController {
   ######################################
 
   # set current for both channels (internal)
-  method write     {args} { return [$dev write      {*}$args]}
-  method cmd       {args} { return [$dev cmd        {*}$args]}
-  method cmd_read  {args} { return [$dev cmd_read   {*}$args]}
-  method read      {} { return [$dev read]}
-  method lock      {} { return [$dev lock]}
-  method unlock    {} { return [$dev unlock]}
-  method list {}   {return {list read write cmd cmd_read lock unlock get_model}}
-
+  method cmd {args} {
+    set ret [$dev cmd {*}$args]
+    foreach line $ret { spp_server::answer $line }
+  }
 }
 
-
+set spp_server::int_type 1
 spp_server::run DeviceController $argv
