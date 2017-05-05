@@ -8,7 +8,7 @@ package require Locking 2.0
 #  lockin0 cmd *IDN?
 #
 # Information about devices read from devices.txt file:
-# name model driver parameters
+# name driver parameters
 #
 # There are two levels of locking implemented using Rota's Locking library.
 # - low-level locking is done on every single input/output operation
@@ -19,7 +19,6 @@ package require Locking 2.0
 itcl::class Device {
   variable dev;    # device handle
   variable name;   # device name
-  variable model;  # device model
   variable drv;    # device driver
   variable pars;   # driver parameters
   variable gpib_addr;  # gpib address (for gpib_prologix driver)
@@ -44,9 +43,8 @@ itcl::class Device {
       # split line
       set data [regexp -all -inline {\S+} $line]
       if { [lindex $data 0] == $name } {
-        set model [lindex $data 1]
-        set drv   [lindex $data 2]
-        set pars  [lrange $data 3 end]
+        set drv   [lindex $data 1]
+        set pars  [lrange $data 2 end]
         break
       }
     }
@@ -106,7 +104,5 @@ itcl::class Device {
   method unlock {} {
     ::unlock $name
   }
-
-  method get_model {} {return $model}
 
 }

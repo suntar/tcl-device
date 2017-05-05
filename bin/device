@@ -42,8 +42,7 @@ itcl::class DeviceController {
   method read      {} { return [$dev read]}
   method lock      {} { return [$dev lock]}
   method unlock    {} { return [$dev unlock]}
-  method get_model {} { return [$dev get_model]}
-  method list {} {return {list read write cmd cmd_read lock unlock get_model}}
+  method list {}   {return {list read write cmd cmd_read lock unlock get_model}}
 
 }
 

@@ -52,8 +52,11 @@ itcl::class ForkPulseDriver {
 
     $osc_dev lock
     $gen_dev lock
-    if { [$osc_dev get_model] != "pico4224" } {error "only pico4224 oscilloscope model is supported"}
-    if { [$gen_dev get_model] != "agilent_33511b" } {error "Error: only agilent_33511b generator model is supported"}
+    set ind [$osc_dev cmd *idn?]
+    if {! regexp {^pico_rec} [$osc_dev cmd *idn?] } {
+       error "only pico_rec program is supported as oscilloscope"}
+    if {! regexp {^Agilent Technologies,33511B} [$gen_dev cmd *idn?]} {
+       error "Error: only agilent 33511b generator is supported"}
 
     ##### Open database connection is needed
     if {$db_dev != {} } { Device $db_dev }
