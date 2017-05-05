@@ -29,9 +29,8 @@ itcl::class monitor_module {
 
   public variable cnames {};  # column names
   public variable nplot 500; # max number of points to be plot
-  variable v0 {}; # three last measured values
-  variable v1 {};
-  variable v2 {};
+  variable v0 {}; # last measured values
+  variable v1 {}; # previous values
   variable dt  0; # time from previously saved point
   variable tim {}; # time array for the plot
   variable dat {}; # data arrays for the plot
@@ -76,26 +75,19 @@ itcl::class monitor_module {
 
     # data filtering: do not save point if change was small
     set save 1
-    if {$filter!=0} {
-      set dt [expr {$dt + int($tmin*1000)}]
-      if {$dt < $tmax*1000 &&\
-          [llength $v0] <= [llength $v1] &&\
-          [llength $v0] <= [llength $v2] } {
-
-        set rsave 0
-        for {set i 0} {$i < [llength $v0]} {incr i} {
-          set v0i [lindex $v0 $i]
-          set v1i [lindex $v1 $i]
-          set v2i [lindex $v2 $i]
-          set dv  [expr {abs($v0i+$v2i-2*$v1i)}]
-          set at 0
-          set rt 0
-          if { [ llength $atol] > $i } {set at [lindex $atol $i]}
-          if { [ llength $rtol] > $i } {set rt [lindex $rtol $i]}
-          set t [expr max($at, $rt*abs($v0i))]
-          if { $dv >= $t } {set rsave 1}
-        }
-        if {$rsave == 0} {set save 0}
+    set dt [expr {$dt + int($tmin*1000)}]
+    if {$filter!=0 && $dt < $tmax*1000 && [llength $v0] == [llength $v1]} {
+      set save 0
+      for {set i 0} {$i < [llength $v0]} {incr i} {
+        set v0i [lindex $v0 $i]
+        set v1i [lindex $v1 $i]
+        set dv  [expr {abs($v0i-$v1i)}]
+        set at 0
+        set rt 0
+        if { [ llength $atol] > $i } {set at [lindex $atol $i]}
+        if { [ llength $rtol] > $i } {set rt [lindex $rtol $i]}
+        set tol [expr max($at, $rt*abs($v0i))]
+        if { $dv >= $tol } {set save 1}
       }
     }
 
