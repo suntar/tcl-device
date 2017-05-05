@@ -133,6 +133,7 @@ itcl::class spp {
 ###########################################################
 # Tenma power supply. It is a serial port connection,
 # but with specific delays and without newline characters.
+# parameters: character device (such as /dev/ttyACM0)
 itcl::class tenma_ps {
   variable dev
   variable del;     # read/write delay
