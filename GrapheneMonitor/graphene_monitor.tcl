@@ -38,6 +38,8 @@ itcl::class monitor_module {
   variable datL {}; #
   variable w {};
 
+  variable plot_conf 0; #is the plot window configured?
+
   # Set module state. This function is run from the
   # UI checkbox when its state changes.
   method ch_state {s} {
@@ -115,6 +117,13 @@ itcl::class monitor_module {
         foreach D $dat {$D delete 0:99}
         $tim delete 0:99
       }
+      # configure the plot if needed
+      if {$plot_conf == 0} {
+        set_data 0 $tim $timL
+        if {[llength $dat] > 0} {set_data 1 [lindex $dat 0] [lindex $datL 0]}
+        if {[llength $dat] > 1} {set_data 2 [lindex $dat 1] [lindex $datL 1]}
+        set plot_conf 1
+      }
     }
 
     # save data in the database
@@ -190,6 +199,7 @@ itcl::class monitor_module {
   # set x/data columns
   method set_data {axis data_col data_col_L} {
     # x axis
+    if {![winfo exists .plot]} { return }
     if {$axis==0 && $data_col!={}} {
       $w element configure data1 -xdata $data_col
       $w element configure data2 -xdata $data_col
@@ -211,11 +221,20 @@ itcl::class monitor_module {
     }
   }
 
-  # show pop-up window with a plot
+
+  # create pop-up window with a plot -- should be run once
   method plot {} {
+
     if {$verb} {puts "$this: open plot window"}
-    destroy .plot
+    if {[winfo exists .plot]} {
+      destroy .plot
+    }
+    if {[info exists xblt::plotmenu::menu(.plot.graph)]} {
+      unset xblt::plotmenu::menu(.plot.graph)
+    }
+
     toplevel .plot
+    set plot_conf 0
     grid [ label .plot.name -text $name ]
     set w [blt::graph .plot.graph -highlightthickness 0 -bufferelements 0]
 
@@ -235,13 +254,14 @@ itcl::class monitor_module {
     grid $w
 
     grid [frame .plot.menubar -borderwidth 0 -takefocus 0]
-    menubutton .plot.menubar.menux -menu .plot.menubar.menux.m -text "X axis"  -indicatoron 1
-    menubutton .plot.menubar.menuy -menu .plot.menubar.menuy.m -text "Y1 axis" -indicatoron 1
-    menubutton .plot.menubar.menuz -menu .plot.menubar.menuz.m -text "Y2 axis" -indicatoron 1
+    menubutton .plot.menubar.menux -menu .plot.menubar.menux.m -text ""  -indicatoron 1
+    menubutton .plot.menubar.menuy -menu .plot.menubar.menuy.m -text "" -indicatoron 1
+    menubutton .plot.menubar.menuz -menu .plot.menubar.menuz.m -text "" -indicatoron 1
     menu .plot.menubar.menux.m
     menu .plot.menubar.menuy.m
     menu .plot.menubar.menuz.m
     pack .plot.menubar.menux .plot.menubar.menuy .plot.menubar.menuz -side left
+
     .plot.menubar.menux.m add command -label Time -command [list $this set_data 0 $tim $timL]
     .plot.menubar.menuy.m add command -label None -command [list $this set_data 1 {} {}]
     .plot.menubar.menuz.m add command -label None -command [list $this set_data 2 {} {}]
@@ -254,11 +274,8 @@ itcl::class monitor_module {
     grid [ frame .plot.btns ] -sticky e
     grid [ button .plot.btns.b1 -text Clear -state normal -command "$this clear_plot" ]\
          [ button .plot.btns.b2 -text Close -state normal -command "destroy .plot" ] -sticky e
-
-    set_data 0 $tim $timL
-    if {[llength $dat] > 0} {set_data 1 [lindex $dat 0] [lindex $datL 0]}
-    if {[llength $dat] > 1} {set_data 2 [lindex $dat 1] [lindex $datL 1]}
   }
+
 
   method clear_plot {} {
     foreach D $dat V $v0 { $D delete 0:end }
