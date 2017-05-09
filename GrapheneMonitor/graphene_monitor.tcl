@@ -65,6 +65,7 @@ itcl::class monitor_module {
 
   # run get method regularly, save data
   method start_run {} {
+    global $vvar
 
     # sweeper: make a step
     if {$sweeper !=0 && $srun != 0} {
@@ -198,12 +199,14 @@ itcl::class monitor_module {
     }
   }
 
-  # select axis
+  ## Select axis
+  ## axis X: -1,  Y: 0..N
+  ## col  T/none: -1, data: 0..N
   method select_axis {axis col} {
     if {![winfo exists .plot]} { return }
 
-    if {$col==0} {
-      if {$axis==0} {
+    if {$col==-1} {
+      if {$axis==-1} {
         set name Time
         set d  $tim
         set dL $timL
@@ -213,44 +216,32 @@ itcl::class monitor_module {
         set dL {}
       }
     } else {
-      set col [expr $col-1]
       set name  [lindex $cnames $col]
       set d     [lindex $dat $col]
       set dL    [lindex $datL $col]
     }
 
-    # x axis
-    if {$axis==0} {
-      $w element configure data1 -xdata $d
-      $w element configure data2 -xdata $d
-      $w element configure last1 -xdata $dL
-      $w element configure last2 -xdata $dL
+    if {$axis==-1} {
+      for {set i 0} {$i<[llength $cnames]} {incr i} {
+        $w element configure data$i -xdata $d
+        $w element configure last$i -xdata $dL
+      }
       if {$d == $tim} {
         $w axis configure x -command graphene::fmt_time
       } else {
         $w axis configure x -command {}
       }
-      .plot.menubar0.menu0 configure -text $name
-    }
-    if {$axis==1} {
-      $w element configure data1 -ydata $d
-      $w element configure last1 -ydata $dL
-      .plot.menubar1.menu1 configure -text $name
-    }
-    if {$axis==2} {
-      $w element configure data2 -ydata $d
-      $w element configure last2 -ydata $dL
-      .plot.menubar2.menu2 configure -text $name
+      .plot.menubarX.menuX configure -text $name
+    } else {
+      $w element configure data$axis -ydata $d
+      $w element configure last$axis -ydata $dL
+      .plot.menubar$axis.menu$axis configure -text $name
     }
   }
 
 
   ## default settings
-  method select_axis_def {} {
-    select_axis 0 0
-    if {[llength $dat] > 0} {select_axis 1 1}
-    if {[llength $dat] > 1} {select_axis 2 2}
-  }
+  method select_axis_def {} { for {set i -1} {$i<[llength $cnames]} {incr i} {select_axis $i $i} }
 
 
   # create pop-up window with a plot
@@ -272,11 +263,6 @@ itcl::class monitor_module {
     set plot_conf 0
     grid [ label .plot.name -text $name ]
     set w [blt::graph .plot.graph -highlightthickness 0 -bufferelements 0]
-
-    $w element create data1 -symbol circle -pixels 1.5 -linewidth 1 -color red
-    $w element create data2 -symbol circle -pixels 1.5 -linewidth 1 -color blue
-    $w element create last1 -symbol square -pixels 5 -linewidth 0 -color red
-    $w element create last2 -symbol square -pixels 5 -linewidth 0 -color blue
     $w legend configure -hide 1
 
     xblt::plotmenu $w
@@ -288,26 +274,31 @@ itcl::class monitor_module {
 
     grid $w
 
-    ## create buttuns for axis selection
-    grid [frame .plot.menubar0 -borderwidth 0 -takefocus 0] -sticky w
-    grid [frame .plot.menubar1 -borderwidth 0 -takefocus 0] -sticky w
-    grid [frame .plot.menubar2 -borderwidth 0 -takefocus 0] -sticky w
-    menubutton .plot.menubar0.menu0 -menu .plot.menubar0.menu0.m -text "" -relief raised -indicatoron 1
-    menubutton .plot.menubar1.menu1 -menu .plot.menubar1.menu1.m -text "" -relief raised -indicatoron 1
-    menubutton .plot.menubar2.menu2 -menu .plot.menubar2.menu2.m -text "" -relief raised -indicatoron 1
-    menu .plot.menubar0.menu0.m
-    menu .plot.menubar1.menu1.m
-    menu .plot.menubar2.menu2.m
-    pack [label .plot.menubar0.l -text "X:  "] .plot.menubar0.menu0 -side left
-    pack [label .plot.menubar1.l -text "Y1: "] .plot.menubar1.menu1 -side left
-    pack [label .plot.menubar2.l -text "Y2: "] .plot.menubar2.menu2 -side left
-    .plot.menubar0.menu0.m add command -label Time -command [list $this select_axis 0 0]
-    .plot.menubar1.menu1.m add command -label None -command [list $this select_axis 1 0]
-    .plot.menubar2.menu2.m add command -label None -command [list $this select_axis 2 0]
-    for {set i 0} {$i < [llength $cnames]} {incr i} {
-      .plot.menubar0.menu0.m add command -label [lindex $cnames $i] -command [list $this select_axis 0 [expr $i+1]]
-      .plot.menubar1.menu1.m add command -label [lindex $cnames $i] -command [list $this select_axis 1 [expr $i+1]]
-      .plot.menubar2.menu2.m add command -label [lindex $cnames $i] -command [list $this select_axis 2 [expr $i+1]]
+    # create button for x-axis selecton
+    grid [frame .plot.menubarX -borderwidth 0 -takefocus 0] -sticky w
+    menubutton .plot.menubarX.menuX -menu .plot.menubarX.menuX.m -text "" -relief raised -indicatoron 1
+    menu .plot.menubarX.menuX.m
+    pack [label .plot.menubarX.l -text "X:  "] .plot.menubarX.menuX -side left
+    .plot.menubarX.menuX.m add command -label Time -command [list $this select_axis -1 -1]
+    for {set j 0} {$j < [llength $cnames]} {incr j} {
+      .plot.menubarX.menuX.m add command -label [lindex $cnames $j] -command [list $this select_axis -1 $j] }
+
+    ## create buttuns for y-axis selection
+    set defcolors {red darkgreen blue cyan magenta yellow}
+
+    for {set i 0} {$i<[llength $cnames]} {incr i} {
+      # default color
+      set c [lindex $defcolors [expr {$i%[llength $defcolors]} ] ]
+      $w element create data$i -symbol circle -pixels 1.5 -linewidth 1 -color $c
+      $w element create last$i -symbol square -pixels 5 -linewidth 0 -color $c
+      grid [frame .plot.menubar$i -borderwidth 0 -takefocus 0] -sticky w
+      menubutton .plot.menubar$i.menu$i -menu .plot.menubar$i.menu$i.m  -relief raised -indicatoron 1
+      menu .plot.menubar$i.menu$i.m
+      pack [label .plot.menubar$i.l -text "Y$i: " -fg $c -bg white] .plot.menubar$i.menu$i -side left
+      .plot.menubar$i.menu$i.m add command -label None -command [list $this select_axis $i -1]
+      for {set j 0} {$j < [llength $cnames]} {incr j} {
+        .plot.menubar$i.menu$i.m add command -label [lindex $cnames $j] -command [list $this select_axis $i $j]
+      }
     }
     select_axis_def
 
