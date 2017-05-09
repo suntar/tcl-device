@@ -62,9 +62,9 @@ itcl::class monitor_module {
   method start {} {}
   method stop  {} {}
 
+
   # run get method regularly, save data
   method start_run {} {
-    global $vvar
 
     # sweeper: make a step
     if {$sweeper !=0 && $srun != 0} {
@@ -98,17 +98,7 @@ itcl::class monitor_module {
 
     # save data for plotting
     if {[llength $v0] == [llength $cnames]} {
-      #create data vectors if needed
-      if {[llength $cnames] != [llength $dat]} {
-        set tim  [blt::vector create #auto]
-        set timL [blt::vector create #auto]
-        set dat {}
-        for {set i 0} {$i < [llength $cnames]} {incr i} {
-          lappend dat  [blt::vector create #auto]
-          lappend datL [blt::vector create #auto]
-          puts "[lindex dat $i] $i"
-        }
-      }
+
       # append values:
       foreach D $dat  V $v0 { $D append $V }
       foreach D $datL V $v0 { $D set $V }
@@ -121,12 +111,7 @@ itcl::class monitor_module {
         $tim delete 0:99
       }
       # configure the plot if needed
-      if {$plot_conf == 0} {
-        set_data 0 $tim $timL
-        if {[llength $dat] > 0} {set_data 1 [lindex $dat 0] [lindex $datL 0]}
-        if {[llength $dat] > 1} {set_data 2 [lindex $dat 1] [lindex $datL 1]}
-        set plot_conf 1
-      }
+      if {$plot_conf == 0} { select_axis_def; set plot_conf 1 }
     }
 
     # save data in the database
@@ -142,10 +127,12 @@ itcl::class monitor_module {
     if {$verb} {puts [list $this: del: $tmin save: $save val $res ]}
   }
 
+
   # stop the measurement
   method stop_run {} { after cancel $rh; set rh {} }
 
-  # show pop-up window, edit module parameters
+
+  # show Setup window, edit module parameters
   method setup {} {
     if {$verb} {puts "$this: open setup window"}
     destroy .setup
@@ -199,43 +186,88 @@ itcl::class monitor_module {
   method chrun {} {set srun [expr {$srun==0}]}
   method chdir {} {set sdir [expr {-$sdir}]}
 
-  # set x/data columns
-  method set_data {axis data_col data_col_L} {
-    # x axis
+
+  # create data vectors
+  method create_data_vectors {} {
+    set dat {}
+    set tim  [blt::vector create #auto]
+    set timL  [blt::vector create #auto]
+    for {set i 0} {$i < [llength $cnames]} {incr i} {
+      lappend dat  [blt::vector create #auto]
+      lappend datL [blt::vector create #auto]
+    }
+  }
+
+  # select axis
+  method select_axis {axis col} {
     if {![winfo exists .plot]} { return }
-    if {$axis==0 && $data_col!={}} {
-      $w element configure data1 -xdata $data_col
-      $w element configure data2 -xdata $data_col
-      $w element configure last1 -xdata $data_col_L
-      $w element configure last2 -xdata $data_col_L
-      if {$data_col == $tim} {
+
+    if {$col==0} {
+      if {$axis==0} {
+        set name Time
+        set d  $tim
+        set dL $timL
+      } else {
+        set name None
+        set d  {}
+        set dL {}
+      }
+    } else {
+      set col [expr $col-1]
+      set name  [lindex $cnames $col]
+      set d     [lindex $dat $col]
+      set dL    [lindex $datL $col]
+    }
+
+    # x axis
+    if {$axis==0} {
+      $w element configure data1 -xdata $d
+      $w element configure data2 -xdata $d
+      $w element configure last1 -xdata $dL
+      $w element configure last2 -xdata $dL
+      if {$d == $tim} {
         $w axis configure x -command graphene::fmt_time
       } else {
         $w axis configure x -command {}
       }
+      .plot.menubar0.menu0 configure -text $name
     }
     if {$axis==1} {
-      $w element configure data1 -ydata $data_col
-      $w element configure last1 -ydata $data_col_L
+      $w element configure data1 -ydata $d
+      $w element configure last1 -ydata $dL
+      .plot.menubar1.menu1 configure -text $name
     }
     if {$axis==2} {
-      $w element configure data2 -ydata $data_col
-      $w element configure last2 -ydata $data_col_L
+      $w element configure data2 -ydata $d
+      $w element configure last2 -ydata $dL
+      .plot.menubar2.menu2 configure -text $name
     }
   }
 
 
-  # create pop-up window with a plot -- should be run once
+  ## default settings
+  method select_axis_def {} {
+    select_axis 0 0
+    if {[llength $dat] > 0} {select_axis 1 1}
+    if {[llength $dat] > 1} {select_axis 2 2}
+  }
+
+
+  # create pop-up window with a plot
   method plot {} {
 
     if {$verb} {puts "$this: open plot window"}
+
+    # destroy previouse window
     if {[winfo exists .plot]} {
       destroy .plot
     }
     if {[info exists xblt::plotmenu::menu(.plot.graph)]} {
+      # xblt data can be connected to a destroyed window
       unset xblt::plotmenu::menu(.plot.graph)
     }
 
+    # create new window
     toplevel .plot
     set plot_conf 0
     grid [ label .plot.name -text $name ]
@@ -256,24 +288,30 @@ itcl::class monitor_module {
 
     grid $w
 
-    grid [frame .plot.menubar -borderwidth 0 -takefocus 0]
-    menubutton .plot.menubar.menux -menu .plot.menubar.menux.m -text ""  -indicatoron 1
-    menubutton .plot.menubar.menuy -menu .plot.menubar.menuy.m -text "" -indicatoron 1
-    menubutton .plot.menubar.menuz -menu .plot.menubar.menuz.m -text "" -indicatoron 1
-    menu .plot.menubar.menux.m
-    menu .plot.menubar.menuy.m
-    menu .plot.menubar.menuz.m
-    pack .plot.menubar.menux .plot.menubar.menuy .plot.menubar.menuz -side left
-
-    .plot.menubar.menux.m add command -label Time -command [list $this set_data 0 $tim $timL]
-    .plot.menubar.menuy.m add command -label None -command [list $this set_data 1 {} {}]
-    .plot.menubar.menuz.m add command -label None -command [list $this set_data 2 {} {}]
+    ## create buttuns for axis selection
+    grid [frame .plot.menubar0 -borderwidth 0 -takefocus 0] -sticky w
+    grid [frame .plot.menubar1 -borderwidth 0 -takefocus 0] -sticky w
+    grid [frame .plot.menubar2 -borderwidth 0 -takefocus 0] -sticky w
+    menubutton .plot.menubar0.menu0 -menu .plot.menubar0.menu0.m -text "" -relief raised -indicatoron 1
+    menubutton .plot.menubar1.menu1 -menu .plot.menubar1.menu1.m -text "" -relief raised -indicatoron 1
+    menubutton .plot.menubar2.menu2 -menu .plot.menubar2.menu2.m -text "" -relief raised -indicatoron 1
+    menu .plot.menubar0.menu0.m
+    menu .plot.menubar1.menu1.m
+    menu .plot.menubar2.menu2.m
+    pack [label .plot.menubar0.l -text "X:  "] .plot.menubar0.menu0 -side left
+    pack [label .plot.menubar1.l -text "Y1: "] .plot.menubar1.menu1 -side left
+    pack [label .plot.menubar2.l -text "Y2: "] .plot.menubar2.menu2 -side left
+    .plot.menubar0.menu0.m add command -label Time -command [list $this select_axis 0 0]
+    .plot.menubar1.menu1.m add command -label None -command [list $this select_axis 1 0]
+    .plot.menubar2.menu2.m add command -label None -command [list $this select_axis 2 0]
     for {set i 0} {$i < [llength $cnames]} {incr i} {
-      .plot.menubar.menux.m add command -label [lindex $cnames $i] -command [list $this set_data 0 [lindex $dat $i] [lindex $datL $i]]
-      .plot.menubar.menuy.m add command -label [lindex $cnames $i] -command [list $this set_data 1 [lindex $dat $i] [lindex $datL $i]]
-      .plot.menubar.menuz.m add command -label [lindex $cnames $i] -command [list $this set_data 2 [lindex $dat $i] [lindex $datL $i]]
+      .plot.menubar0.menu0.m add command -label [lindex $cnames $i] -command [list $this select_axis 0 [expr $i+1]]
+      .plot.menubar1.menu1.m add command -label [lindex $cnames $i] -command [list $this select_axis 1 [expr $i+1]]
+      .plot.menubar2.menu2.m add command -label [lindex $cnames $i] -command [list $this select_axis 2 [expr $i+1]]
     }
+    select_axis_def
 
+    ## create Clear and Close buttons
     grid [ frame .plot.btns ] -sticky e
     grid [ button .plot.btns.b1 -text Clear -state normal -command "$this clear_plot" ]\
          [ button .plot.btns.b2 -text Close -state normal -command "destroy .plot" ] -sticky e
@@ -319,11 +357,16 @@ itcl::class monitor {
   }
 
   method add_module {mod} {
+
+    # add and configure the module
     set i [llength $modules]
-    lappend modules $mod
     set cbv  cb$i
     set vvar ent$i
+    lappend modules $mod
     $mod configure -dbcon "$dbcon" -vvar "$vvar" -verb "$verb"
+    $mod create_data_vectors
+
+    ## create interface
     grid [checkbutton .cb$i -text [$mod cget -name]\
          -variable $cbv -command "$mod ch_state $$cbv" ] -sticky nw -column 0 -row $i
     grid [entry  .ent$i -textvariable $vvar ] -sticky nw -column 1 -row $i
