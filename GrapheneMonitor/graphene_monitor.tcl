@@ -4,6 +4,9 @@ package require xBlt 3
 
 namespace eval graphene {
 
+proc fmt_time {fmt t} { clock format [expr {int($t)}] -format "%H:%M:%S" }
+
+
 ######################################################################
 itcl::class monitor_module {
   public variable tmin    1;  # measurement period
@@ -206,16 +209,16 @@ itcl::class monitor_module {
       $w element configure last1 -xdata $data_col_L
       $w element configure last2 -xdata $data_col_L
       if {$data_col == $tim} {
-#        $w axis configure x -command fmt_time
+        $w axis configure x -command graphene::fmt_time
       } else {
         $w axis configure x -command {}
       }
     }
-    if {$axis==1 && $data_col!={}} {
+    if {$axis==1} {
       $w element configure data1 -ydata $data_col
       $w element configure last1 -ydata $data_col_L
     }
-    if {$axis==2 && $data_col!={}} {
+    if {$axis==2} {
       $w element configure data2 -ydata $data_col
       $w element configure last2 -ydata $data_col_L
     }
