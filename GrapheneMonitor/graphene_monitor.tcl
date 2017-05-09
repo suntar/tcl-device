@@ -1,4 +1,4 @@
-package provide GrapheneMonitor 1.2
+package provide GrapheneMonitor 1.3
 package require Itcl
 package require xBlt 3
 
@@ -107,6 +107,7 @@ itcl::class monitor_module {
       # append values:
       foreach D $dat  V $v0 { $D append $V }
       foreach D $datL V $v0 { $D set $V }
+
       $tim  append [expr 1e-6*[clock microseconds]]
       $timL set [expr 1e-6*[clock microseconds]]
       # remove old values:
@@ -186,25 +187,27 @@ itcl::class monitor_module {
   method chrun {} {set srun [expr {$srun==0}]}
   method chdir {} {set sdir [expr {-$sdir}]}
 
-  method set_data {axis data_col} {
-    if {$axis==0} {
+  # set x/data columns
+  method set_data {axis data_col data_col_L} {
+    # x axis
+    if {$axis==0 && $data_col!={}} {
       $w element configure data1 -xdata $data_col
       $w element configure data2 -xdata $data_col
-#      $w element configure last1 -xdata ${data_col}L
-#      $w element configure last2 -xdata ${data_col}L
+      $w element configure last1 -xdata $data_col_L
+      $w element configure last2 -xdata $data_col_L
       if {$data_col == $tim} {
 #        $w axis configure x -command fmt_time
       } else {
-#        $w axis configure x -command {}
+        $w axis configure x -command {}
       }
     }
-    if {$axis==1} {
+    if {$axis==1 && $data_col!={}} {
       $w element configure data1 -ydata $data_col
-#      $w element configure last1 -ydata ${data_col}L
+      $w element configure last1 -ydata $data_col_L
     }
-    if {$axis==2} {
+    if {$axis==2 && $data_col!={}} {
       $w element configure data2 -ydata $data_col
-#      $w element configure last2 -ydata ${data_col}L
+      $w element configure last2 -ydata $data_col_L
     }
   }
 
@@ -216,10 +219,10 @@ itcl::class monitor_module {
     grid [ label .plot.name -text $name ]
     set w [blt::graph .plot.graph -highlightthickness 0 -bufferelements 0]
 
-    $w element create data1 -symbol {} -linewidth 1 -color red
-    $w element create data2 -symbol {} -linewidth 1 -color blue
-    $w element create last1 -symbol circle -pixels 3 -linewidth 0 -color red
-    $w element create last2 -symbol circle -pixels 3 -linewidth 0 -color blue
+    $w element create data1 -symbol circle -pixels 1.5 -linewidth 1 -color red
+    $w element create data2 -symbol circle -pixels 1.5 -linewidth 1 -color blue
+    $w element create last1 -symbol square -pixels 5 -linewidth 0 -color red
+    $w element create last2 -symbol square -pixels 5 -linewidth 0 -color blue
     $w legend configure -hide 1
 
     xblt::plotmenu $w
@@ -227,6 +230,7 @@ itcl::class monitor_module {
     xblt::measure $w
     xblt::zoomstack $w -scrollbutton 2
     xblt::readout $w
+    xblt::elemop $w
 
     grid $w
 
@@ -238,22 +242,22 @@ itcl::class monitor_module {
     menu .plot.menubar.menuy.m
     menu .plot.menubar.menuz.m
     pack .plot.menubar.menux .plot.menubar.menuy .plot.menubar.menuz -side left
-    .plot.menubar.menux.m add command -label Time -command [list $this set_data 0 $tim]
-    .plot.menubar.menuy.m add command -label None -command [list $this set_data 1 {}]
-    .plot.menubar.menuz.m add command -label None -command [list $this set_data 2 {}]
+    .plot.menubar.menux.m add command -label Time -command [list $this set_data 0 $tim $timL]
+    .plot.menubar.menuy.m add command -label None -command [list $this set_data 1 {} {}]
+    .plot.menubar.menuz.m add command -label None -command [list $this set_data 2 {} {}]
     for {set i 0} {$i < [llength $cnames]} {incr i} {
-      .plot.menubar.menux.m add command -label [lindex $cnames $i] -command [list $this set_data 0 [lindex $dat $i]]
-      .plot.menubar.menuy.m add command -label [lindex $cnames $i] -command [list $this set_data 1 [lindex $dat $i]]
-      .plot.menubar.menuz.m add command -label [lindex $cnames $i] -command [list $this set_data 2 [lindex $dat $i]]
+      .plot.menubar.menux.m add command -label [lindex $cnames $i] -command [list $this set_data 0 [lindex $dat $i] [lindex $datL $i]]
+      .plot.menubar.menuy.m add command -label [lindex $cnames $i] -command [list $this set_data 1 [lindex $dat $i] [lindex $datL $i]]
+      .plot.menubar.menuz.m add command -label [lindex $cnames $i] -command [list $this set_data 2 [lindex $dat $i] [lindex $datL $i]]
     }
 
     grid [ frame .plot.btns ] -sticky e
     grid [ button .plot.btns.b1 -text Clear -state normal -command "$this clear_plot" ]\
          [ button .plot.btns.b2 -text Close -state normal -command "destroy .plot" ] -sticky e
 
-    set_data 0 $tim
-    if {[llength $dat] > 0} {set_data 1 [lindex $dat 0]}
-    if {[llength $dat] > 1} {set_data 2 [lindex $dat 1]}
+    set_data 0 $tim $timL
+    if {[llength $dat] > 0} {set_data 1 [lindex $dat 0] [lindex $datL 0]}
+    if {[llength $dat] > 1} {set_data 2 [lindex $dat 1] [lindex $datL 1]}
   }
 
   method clear_plot {} {
