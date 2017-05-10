@@ -6,7 +6,10 @@ package require Device 1.3
 package require ParseOptions 2.0
 
 #############################################################
+### fork_pulse - making fork pulse measurements
+
 ## Command line options:
+#
 set options [list \
 {-o -osc_dev}  osc_dev  {}       {oscilloscope device}\
 {-g -gen_dev}  gen_dev  {}       {generator device}\
@@ -16,11 +19,28 @@ set options [list \
 {-D -data_dir} data_dir {./data} {data folder}\
 ]
 
-#############################################################
-### ForkPulseDriver - class for making fork pulses
-### methods:
-###   constructor(options)
-###   list -- print list of commands which can be run from stdin
+## Commands:
+#
+#   list -- print list of commands which can be run from stdin
+#   setup <freq> <cnt> <volt> <sc> -- set up devices
+#      freq - pulse frequency
+#      cnt  - pulse count
+#      volt - pulse voltage
+#      sc   - oscilloscope scale
+#   pulse <tpre> <time> <dt> - do the pulse
+#      time  - record time
+#      tpre  - pretrigger time
+#      dt    - record rate
+#   get_osc_sc - get possible scale settings for the oscilloscope
+
+## Requirements:
+#
+#   - Oscilloscope is controlled by pico_rec program
+#   - Generator is HP/Agilent/Keysight 33511B.
+#   - Fork is excited by the generator and measured
+#     by channel A of the oscilloscope
+#   - Generator trigger output is connected to
+#     channel B of the oscilloscope
 
 itcl::class ForkPulseDriver {
   variable osc_dev
@@ -28,13 +48,9 @@ itcl::class ForkPulseDriver {
   variable db_dev
   variable db_val
   variable db_ann
-  variable datadir
+  variable data_dir
 
-  variable f0 32760
-  variable cnt 100
-  variable dt  1e-5
-  variable volt 10
-  variable time 5
+  variable setup_done 0
 
   constructor {opts} {
     # Parse options.
@@ -42,72 +58,82 @@ itcl::class ForkPulseDriver {
     parse_options "fork_pulse" $opts $options
 
     ##### Open oscilloscope and generator conections and grab locks.
-    ##### Check that device models are propper.
-
+    ##### Check that device models are supported.
     if {$osc_dev  == {} } { error "osc_dev is empty" }
     if {$gen_dev  == {} } { error "gen_dev is empty" }
-
     Device $osc_dev
     Device $gen_dev
-
     $osc_dev lock
     $gen_dev lock
     set ind [$osc_dev cmd *idn?]
-    if {! regexp {^pico_rec} [$osc_dev cmd *idn?] } {
-       error "only pico_rec program is supported as oscilloscope"}
-    if {! regexp {^Agilent Technologies,33511B} [$gen_dev cmd *idn?]} {
-       error "Error: only agilent 33511b generator is supported"}
+    if {! [regexp {^pico_rec} {*}[$osc_dev cmd *idn?]] } {
+       error "unsupported osc device (pico_rec program is needed)"}
+    if {! [regexp {^Agilent Technologies,33511B} [$gen_dev cmd *idn?]]} {
+       error "unsupported gen device (agilent 33511b is needed)"}
 
-    ##### Open database connection is needed
-    if {$db_dev != {} } { Device $db_dev }
-
-    ## prepare generator and oscilloscope
-    set_gen
-    set_osc
+    ##### Open database connection if needed
+    if {$db_dev != {} } {
+      Device $db_dev
+      if {! [regexp {^Graphene database} {*}[$db_dev cmd *idn?]]} {
+        error "unsupported db device (graphene is needed)"}
+    }
   }
   destructor {
     $osc_dev unlock
     $gen_dev unlock
   }
 
-  method set_gen {} {
+  method setup {freq cnt volt sc} {
+    ## Generator setup:
+    ## Burst mode with BUS trigger.
     $gen_dev write BURST:STATE on
+    $gen_dev write FUNC SIN
     $gen_dev write BURST:MODE trig
     $gen_dev write BURST:NCYC $cnt
     $gen_dev write TRIG:SOURCE BUS
-    $gen_dev write FREQ $f0
+    $gen_dev write FREQ $freq
     $gen_dev write VOLT $volt
     $gen_dev write OUTP ON
-  }
-  method set_osc {} {
+
+    ## Oscilloscope setup:
     ## A - signal, B - trigger
-    $osc_dev cmd chan_set A 1 AC 0.05
+    $osc_dev cmd chan_set A 1 AC $sc
     $osc_dev cmd chan_set B 1 DC 10
     $osc_dev cmd trig_set B 0.1 FALLING 0
+
+    if {$db_dev != {} && $db_ann !={} } {
+      $db_dev cmd put $db_ann now "Fork setup: FREQ=$freq CNT=$cnt VOLT=$volt SC=$sc"
+    }
+    set setup_done 1
+    return
   }
 
-  method pulse {} {
-    set N [expr {int(1.0*$time/$dt)}]
-    $osc_dev cmd block A 1024 $N $dt data/sig.dat
+  method pulse {tpre time dt} {
+    if {!$setup_done} {error "setup command should be used before a pulse"}
+    set N  [expr {int(1.0*$time/$dt)}]; # sample count
+    set NP [expr {int(1.0*$tpre/$dt)}]; # pretigger sample count
+    $osc_dev cmd block A $NP $N $dt ${data_dir}/sig.dat
     $gen_dev write *TRG
     $osc_dev cmd wait
 
-    set out [exec sig_filter -F 30000 -G 34000 -f fit data/sig.dat ]
-    exec sig_filter -f pnm data/sig.dat | pnmtopng > data/sig.png
-    exec sig_filter -w 8192 -f sfft_pnm -F 30000 -G 34000 data/sig.dat | pnmtopng > data/sig.fft.png
+    set out [exec sig_filter -F 30000 -G 34000 -f fit ${data_dir}/sig.dat ]
+#    exec sig_filter -f pnm ${data_dir}/sig.dat | pnmtopng > ${data_dir}/sig.png
+#    exec sig_filter -w 8192 -f sfft_pnm -F 30000 -G 34000 ${data_dir}/sig.dat | pnmtopng > ${data_dir}/sig.fft.png
 
-
-    set tau [lindex $out 3]
-#    set time [expr {$tau*5}]
     if {$db_dev != {} && $db_val !={} } {
-      $db_dev cmd put $db_val $out
-      $db_dev cmd sync"
+      $db_dev cmd put $db_val {*}$out
+      $db_dev cmd sync
     }
     return $out
   }
 
+  method get_osc_sc {} {
+    return {*}[$osc_dev cmd ranges A]
+  }
+
+
   # Return list of commands which can be run from stdin.
-  method list {} {return {list pulse} }
+  method list {} {return {list pulse setup get_osc_sc} }
 }
 
 #############################################################
