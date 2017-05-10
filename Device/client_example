@@ -14,8 +14,8 @@ proc test_res {cmd res} {
   if {$res != $r} {error "ERROR:\n result: <$r>\n expect: <$res>"}
 }
 
-test_err {spp_client cla "date" } "unknown protocol"
-test_err {spp_client clb "echo" } "unknown protocol"
+test_err {spp_client cla "date" } "date: unknown protocol"
+test_err {spp_client clb "echo" } "echo: unknown protocol"
 
 test_res {spp_client cl1 "./server_example" } "cl1"
 test_err {spp_client clx "./server_example a"} "argument should be a positive integer"
