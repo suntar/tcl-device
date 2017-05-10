@@ -4,8 +4,6 @@
 
 package require Itcl
 
-
-
 ####################################################################
 ## read a line until \n character or timeout
 ## dev should be configured with -blocking 0
@@ -25,52 +23,47 @@ namespace eval conn_drivers {
 # parameters:
 #  -hostname -- converter hostname or ip-address
 #  -addr     -- device GPIB address
-#  -read_timeout -- read timeout, ms
+#  -timeout  -- i/o timeout, ms
 itcl::class gpib_prologix {
   variable dev
   variable gpib_addr
-  variable read_timeout 1000
+  variable timeout 2000
 
   # open device
   constructor {pars} {
     set pp [split $pars ":"]
     set host      [lindex $pp 0]
     set gpib_addr [lindex $pp 1]
-    set dev [::socket $host 1234]
-    fconfigure $dev -blocking false -buffering line
+    set dev [Chan #auto [::socket $host 1234]]
   }
   # close device
   destructor {
-    ::close $dev
+    itcl::delete object $dev
   }
   # set address before any operation
   method set_addr {} {
-    puts $dev "++addr"
-    flush $dev
-    set a [read_line_nb $dev $read_timeout]
+    $dev write "++addr" $timeout
+    set a [$dev read $timeout]
     if { $a != $gpib_addr } {
-      puts $dev "++addr $gpib_addr"
-      flush $dev
+      $dev write "++addr $gpib_addr" $timeout
     }
   }
   # write to device without reading answer
   method write {args} {
     set_addr
-    puts $dev {*}$args
-    flush $dev
+    $dev write {*}$args $timeout
   }
   # read from device
   method read {} {
     set_addr
-    return [read_line_nb $dev $read_timeout]
+    return [$dev read $timeout]
   }
   # write and then read
   method cmd {args} {
     set_addr
     set cmd {*}$args
-    puts $dev $cmd
-    flush $dev
-    if [regexp {\?\s*$} $cmd] { return [read_line_nb $dev $read_timeout] }\
+    $dev write $cmd $timeout
+    if [regexp {\?\s*$} $cmd] { return [$dev read $timeout] }\
     else {return ""}
   }
 }
@@ -79,36 +72,33 @@ itcl::class gpib_prologix {
 # LXI device connected via ethernet. SCPI raw connection via port 5025
 # parameters:
 #  -hostname -- device hostname or ip-address
-#  -read_timeout -- read timeout, ms
+#  -timeout -- read timeout, ms
 itcl::class lxi_scpi_raw {
   variable dev
-  variable read_timeout 1000
+  variable timeout 1000
 
   # open device
   constructor {pars} {
     set host $pars
-    set dev [::socket $host 5025]
-    fconfigure $dev -blocking false -buffering line
+    set dev [Chan #auto [::socket $host 5025]]
   }
   # close device
   destructor {
-    ::close $dev
+    itcl::delete object $dev
   }
   # write to device without reading answer
   method write {args} {
-    puts $dev {*}$args
-    flush $dev
+    $dev write {*}$args $timeout
   }
   # read from device
   method read {} {
-    return [read_line_nb $dev $read_timeout]
+    return [$dev read $timeout]
   }
   # write and then read
   method cmd {args} {
     set cmd {*}$args
-    puts $dev $cmd
-    flush $dev
-    if [regexp {\?\s*$} $cmd] { return [read_line_nb $dev $read_timeout] }\
+    $dev write $cmd $timeout
+    if [regexp {\?\s*$} $cmd] { return [$dev read $timeout] }\
     else {return ""}
   }
 }

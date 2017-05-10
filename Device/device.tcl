@@ -51,7 +51,9 @@ itcl::class Device {
     if { $drv eq "" } { error "Can't find device $name in /etc/devices.txt"}
     set dev [conn_drivers::$drv #auto $pars]
   }
-
+  destructor {
+    itcl::delete object $dev
+  }
 
   ####################################################################
   # run command, read response if needed
