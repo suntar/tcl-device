@@ -4,32 +4,58 @@
 
 package require Device 1.2
 
-Device fork0
-set del 1000
+# fork device
+set fork fork0
 
+# parameters:
+set p_time 5;     # record time
+set p_tpre 0.01;  # pretrigger time
+set p_dt 1e-5;    # record sampling rate
+set p_volt 10;    # pulse voltage
+set p_freq 32768; # pulse frequency
+set p_cnt 10;     # pulse count
+set p_sc 0.05;    # oscilloscope scale
+set p_del 1000;   # delay between measurements
+
+# measured values
+set time 0;  # system time
+set amp 0;   # amplitude
+set rtau 0;  # 1/relaxation time
+set fre 0;   # frequency
+
+
+# make interface
 labelframe .f
-label .f.amp    -textvariable amp -font {-size 20} -text 0 -width 12
+label .f.amp    -textvariable amp  -font {-size 20} -text 0 -width 12
 label .f.amp_l  -text "Amplitude, mV"
-label .f.tau    -textvariable tau -font {-size 20} -text 0 -width 12
-label .f.tau_l  -text "Relaxation time, s"
-label .f.fre    -textvariable fre -font {-size 20} -text 0 -width 12
+label .f.rtau   -textvariable rtau -font {-size 20} -text 0 -width 12
+label .f.rtau_l -text "1/Relaxation time, 1/s"
+label .f.fre    -textvariable fre  -font {-size 20} -text 0 -width 12
 label .f.fre_l  -text "Frequency, Hz"
 grid .f.amp_l .f.amp
-grid .f.tau_l .f.tau
+grid .f.rtau_l .f.rtau
 grid .f.fre_l .f.fre
 pack .f
 
 button .exit -text "Exit"  -command exit
 pack .exit -side right
 
+# Open and set up the device
+Device $fork
+$fork cmd setup $p_freq $p_cnt $p_volt $p_sc
+
 proc do_pulse {} {
-  global time amp tau fre del
-  set ret [lindex [fork0 cmd pulse] 0]
+  global fork
+  global p_time p_tpre p_dt p_volt p_freq p_cnt p_del
+  global time amp rtau fre
+
+  set ret [lindex [$fork cmd pulse $p_tpre $p_time $p_dt] 0]
+puts $ret
   set time [lindex $ret 0]
-  set amp  [format %.6f [expr 1000*[lindex $ret 1]]]
-  set fre  [format %.6f [lindex $ret 2]]
-  set tau  [format %.6f [lindex $ret 3]]
-  after $del do_pulse
+  set fre  [format %.6f [lindex $ret 1]]
+  set rtau [format %.6f [lindex $ret 2]]
+  set amp  [format %.6f [expr {1000*[lindex $ret 3]}]]
+  after $p_del do_pulse
 }
 
 after idle do_pulse
