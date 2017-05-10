@@ -97,7 +97,7 @@ namespace eval spp_server {
     spp_server::_print_ok
 
     # read requests, run commands
-    fconfigure stdin -buffering line
+    fconfigure stdin -buffering line -blocking no
     fileevent stdin readable "spp_server::read_cmd $srv"
     vwait forever
   }
