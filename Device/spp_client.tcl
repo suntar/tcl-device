@@ -26,7 +26,7 @@ itcl::class spp_client {
   }
 
   destructor {
-    ::close $conn
+    itcl::delete object $conn
   }
 
   # write command, read response until #OK or #Error line
