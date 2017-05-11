@@ -20,12 +20,12 @@ namespace eval conn_drivers {
 
 ###########################################################
 # GPIB device connected through Prologix gpib2eth converter
-# parameters:
-#  -hostname -- converter hostname or ip-address
-#  -addr     -- device GPIB address
-#  -timeout  -- i/o timeout, ms
+# parameters: <host>:<gpib_addr>
+#
+# Prologix converter works only with one connection.
+# We have to reopen it on each operation.
 itcl::class gpib_prologix {
-  variable dev
+  variable host
   variable gpib_addr
   variable timeout 2000
 
@@ -34,14 +34,9 @@ itcl::class gpib_prologix {
     set pp [split $pars ":"]
     set host      [lindex $pp 0]
     set gpib_addr [lindex $pp 1]
-    set dev [Chan #auto [::socket $host 1234] $host]
-  }
-  # close device
-  destructor {
-    itcl::delete object $dev
   }
   # set address before any operation
-  method set_addr {} {
+  method set_addr {dev} {
     $dev write "++addr" $timeout
     set a [$dev read $timeout]
     if { $a != $gpib_addr } {
@@ -50,29 +45,36 @@ itcl::class gpib_prologix {
   }
   # write to device without reading answer
   method write {args} {
-    set_addr
+    set dev [Chan #auto [::socket $host 1234] $host]
+    set_addr $dev
     $dev write {*}$args $timeout
+    itcl::delete object $dev
+    return
   }
   # read from device
   method read {} {
-    set_addr
-    return [$dev read $timeout]
+    set dev [Chan #auto [::socket $host 1234] $host]
+    set_addr $dev
+    set ret [$dev read $timeout]
+    itcl::delete object $dev
+    return $ret
   }
   # write and then read
   method cmd {args} {
-    set_addr
+    set dev [Chan #auto [::socket $host 1234] $host]
+    set_addr $dev
     set cmd {*}$args
     $dev write $cmd $timeout
-    if [regexp {\?\s*$} $cmd] { return [$dev read $timeout] }\
-    else {return ""}
+    if [regexp {\?\s*$} $cmd] { set ret [$dev read $timeout] }\
+    else { set ret ""}
+    itcl::delete object $dev
+    return $ret
   }
 }
 
 ###########################################################
 # LXI device connected via ethernet. SCPI raw connection via port 5025
-# parameters:
-#  -hostname -- device hostname or ip-address
-#  -timeout -- read timeout, ms
+# parameters: <host>
 itcl::class lxi_scpi_raw {
   variable dev
   variable timeout 1000
