@@ -21,42 +21,38 @@ Then one can do something like this:
 package require Device
 Device generator
 puts [generator cmd "*idn?"]
+`
 
-Note that library does not know anything about commands used by certain
+Note that library itself does not know anything about commands used by certain
 devices, it just provides connection.
 
 Library also provides IO locking (one device can be used by a few
 programs without collisions) and optional high-level locking (one program
 can lock a device for a long time).
 
+
 ### Interface (see Device/device.tcl)
 ---
 
 * Device <name> -- open a device <name>. The command <name> is created to access the device.
-* <name> read
-* <name> write
-* <name> cmd
+* <name> cmd  -- Send a command and get answer
 * <name> lock -- High-level lock. Lock lasts until the process is alive or until unlock
-                 command is run.
-* <name> unlock -- Unlock
+                 command is run. If device is locked an error is generated after some timeout
+* <name> unlock -- Unlock the device.
 
-In case of error during tcl error is called. Use catch to get it.
+In case of error a tcl error is called. Use catch to process it.
+
 
 ### Drivers (see `Device/drivers.tcl`)
 ---
 
 * gpib_prologix -- GPIB device connected through Prologix gpib2eth converter.
 
-  Parameters:
-  *  -hostname -- converter hostname or ip-address
-  *  -addr     -- device GPIB address
-  *  -read_timeout -- read timeout, ms
+  Parameters: <hostname>:<gpib address>
 
 * lxi_scpi_raw -- LXI device connected via ethernet (SCPI raw connection via port 5025).
 
-  Parameters:
-  * -hostname -- device hostname or ip-address
-  * -read_timeout -- read timeout, ms
+  Parameters: <hostname>
 
 * gpib -- Connection with linux-gpib library.
 

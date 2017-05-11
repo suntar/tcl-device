@@ -1,12 +1,11 @@
 # example of /etc/devices.txt file
-# device  model             conn.driver          parameters
+# device   conn.driver          parameters
 #=======================================================================
 lockin0    gpib_prologix   gpib0:8       # SR844 lock-in
 dgen0      lxi_scpi_raw    dgen0         # Keysight 33500B 2-ch generator
 mult0      lxi_scpi_raw    mult0         # Keysight 34461A multimeter
 mult1      lxi_scpi_raw    mult1         # Keysight 34461A multimeter
 ps0        tenma_ps        /dev/ttyACM0  # tenma PS
-osc0       pico_rec        ER245/039     # picoscope 4224
 
 lockin     gpib            -board 0 -address 6 -trimright "\r\n"
 mult_ag    gpib            -board 0 -address 17 -trimright "\r\n"
@@ -16,5 +15,6 @@ gen0       gpib            -board 0 -address 16 -trimright "\r\n"
 
 db         spp        graphene -i
 db_local   spp        graphene -i -d .
-fork0      fork_pulse      -gen gen0 -osc osc0
-test       test_dev        ""
+osc0       spp        pico_rec -d ER245/039     # picoscope 4224
+fork0      spp        fork_pulse -gen gen0 -osc osc0
+

@@ -10,7 +10,7 @@ package require Locking 2.0
 # Information about devices read from devices.txt file:
 # name driver parameters
 #
-# There are two levels of locking implemented using Rota's Locking library.
+# There are two levels of locking are implemented.
 # - low-level locking is done on every single input/output operation
 #   to prevent mixing read and write commands from different clients.
 # - high level locking is done by lock/unlock methods to allow user
