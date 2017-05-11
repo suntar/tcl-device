@@ -65,7 +65,7 @@ itcl::class gpib_prologix {
     set_addr $dev
     set cmd {*}$args
     $dev write $cmd $timeout
-    if [regexp {\?\s*$} $cmd] { set ret [$dev read $timeout] }\
+    if [regexp {\?} $cmd] { set ret [$dev read $timeout] }\
     else { set ret ""}
     itcl::delete object $dev
     return $ret
@@ -100,7 +100,7 @@ itcl::class lxi_scpi_raw {
   method cmd {args} {
     set cmd {*}$args
     $dev write $cmd $timeout
-    if [regexp {\?\s*$} $cmd] { return [$dev read $timeout] }\
+    if [regexp {\?} $cmd] { return [$dev read $timeout] }\
     else {return ""}
   }
 }
@@ -119,7 +119,7 @@ itcl::class gpib {
   method read {} { return [$dev read ] }
   method cmd {args} {
     set cmd {*}$args
-    if [regexp {\?\s*$} $cmd] { return [$dev cmd_read {*}$args] }\
+    if [regexp {\?} $cmd] { return [$dev cmd_read {*}$args] }\
     else {$dev write {*}$args; return ""}
   }
 }
@@ -168,7 +168,7 @@ itcl::class tenma_ps {
     puts -nonewline $dev $cmd
     flush $dev
     after $del
-    if {[regexp {\?\s*$} $cmd]>0} { return [::read $dev $bufsize] }\
+    if {[regexp {\?} $cmd]>0} { return [::read $dev $bufsize] }\
     else {return ""}
   }
 }
