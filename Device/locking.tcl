@@ -26,11 +26,15 @@ proc unlock {name} {
   if { [file exists $fname] } { file delete $fname }
 }
 
-proc lock_wait {name timeout} {
+# Wait for a lock.
+# If only_others==1 then wait only for lockes set up by other processes
+# Note that in tcl only one process can make io collisions.
+#
+proc lock_wait {name timeout {only_others 0}} {
   if { ! [file exists $::lock_folder] } { return }
-
-  # check lockfile, wait
   set fname "$::lock_folder/$name"
+  # finish other IO operations
+  update idletasks
   # wait while lock file exists and its creator is running
   set dt 100
   while {1} {
@@ -39,7 +43,7 @@ proc lock_wait {name timeout} {
     set p [gets $f]
     close $f
     if { ! [file isdirectory "/proc/$p"] } { break }
-    if {$p == [pid]} { break }
+    if {$only_others && $p == [pid]} { break }
     after 100
     set timeout [expr {$timeout-$dt}]
     if {$timeout < 0} {error "Locking timeout: $name"}

@@ -23,8 +23,8 @@ itcl::class Device {
   variable gpib_addr;  # gpib address (for gpib_prologix driver)
 
   # timeouts
-  variable lock_timeout    1000; # user locks
-  variable io_lock_timeout 1000; # io locks
+  variable lock_timeout    2000; # user locks
+  variable io_lock_timeout 2000; # io locks
 
   ####################################################################
   constructor {} {
@@ -61,8 +61,8 @@ itcl::class Device {
   ####################################################################
   # run command, read response if needed
   method write {args} {
-    ::lock_wait $name    $lock_timeout
-    ::lock_wait io_$name $io_lock_timeout
+    ::lock_wait $name    $lock_timeout 1
+    ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
     set e [catch {set ret [$dev write $args]}]
     # unlock device before throwing an error
@@ -74,8 +74,8 @@ itcl::class Device {
   ####################################################################
   # run command, read response if needed
   method cmd {args} {
-    ::lock_wait $name    $lock_timeout
-    ::lock_wait io_$name $io_lock_timeout
+    ::lock_wait $name    $lock_timeout 1
+    ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
     set e [catch {set ret [$dev cmd $args]}]
     # unlock device before throwing an error
@@ -89,8 +89,8 @@ itcl::class Device {
   ####################################################################
   # read response
   method read {} {
-    ::lock_wait $name    $lock_timeout
-    ::lock_wait io_$name $io_lock_timeout
+    ::lock_wait $name    $lock_timeout 1
+    ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
     set e [catch {set ret [$dev read]}]
     # unlock device before throwing an error
@@ -103,7 +103,7 @@ itcl::class Device {
   # High-level lock commands.
   # If you want to grab the device for a long time, use this
   method lock {} {
-    ::lock_wait $name $lock_timeout
+    ::lock_wait $name $lock_timeout 1
     ::lock $name
   }
   method unlock {} {

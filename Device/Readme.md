@@ -37,7 +37,8 @@ can lock a device for a long time).
 * Device <name> -- open a device <name>. The command <name> is created to access the device.
 * <name> cmd  -- Send a command and get answer
 * <name> lock -- High-level lock. Lock lasts until the process is alive or until unlock
-                 command is run. If device is locked an error is generated after some timeout
+                 command is run. If device is locked, other communications with this
+                 device generate an error after some timeout
 * <name> unlock -- Unlock the device.
 
 In case of error a tcl error is called. Use catch to process it.
