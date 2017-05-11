@@ -110,10 +110,10 @@ TODO: requests with several lines
 TODO: timeouts, safe closing of the channel...
 TODO: raw data transfer
 
-##Conversation example (see server_example program):
+##Conversation example (see spp_server_test.tcl program):
 
 `
-$ ./server_example
+$ ./spp_server_test.tcl
 #SPP001
 Welcome, dear user!
 Please, type "help" if you do not know what to do.
@@ -121,7 +121,7 @@ Please, type "help" if you do not know what to do.
 h
 #Error: Unknown command: h
 help
-server_example -- an example of the command-line interface program.
+spp_server_test -- an example of the command-line interface program.
 Commands:
   write <k> <v> -- write value v into a memory slot k=0..9
   read <k>      -- read value from a memory slot k
@@ -154,7 +154,7 @@ To create a connection to a server:
 and run commands
   conn cmd <command>
 
-See `Device/server_example` and `Device/client_example` programs.
+See `Device/spp_server_test.tcl` and `Device/spp_client_test.tcl` programs.
 
 
 ## SPP programs which can be used as devices:

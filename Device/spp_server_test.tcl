@@ -55,7 +55,7 @@ itcl::class TestSrv {
   ## write command: put value into $var($k), $k=0..9
   method help {} {
     return\
-{server_example -- an example of the command-line interface program.
+{spp_server_test -- an example of the command-line interface program.
 Commands:
   write <k> <v> -- write value v into a memory slot k=0..9
   read <k>      -- read value from a memory slot k

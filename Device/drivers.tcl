@@ -34,7 +34,7 @@ itcl::class gpib_prologix {
     set pp [split $pars ":"]
     set host      [lindex $pp 0]
     set gpib_addr [lindex $pp 1]
-    set dev [Chan #auto [::socket $host 1234]]
+    set dev [Chan #auto [::socket $host 1234] $host]
   }
   # close device
   destructor {
@@ -80,7 +80,7 @@ itcl::class lxi_scpi_raw {
   # open device
   constructor {pars} {
     set host $pars
-    set dev [Chan #auto [::socket $host 5025]]
+    set dev [Chan #auto [::socket $host 5025] $host]
   }
   # close device
   destructor {

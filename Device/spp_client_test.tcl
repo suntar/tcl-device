@@ -17,8 +17,8 @@ proc test_res {cmd res} {
 test_err {spp_client cla "date" } "date: unknown protocol"
 test_err {spp_client clb "echo" } "echo: unknown protocol"
 
-test_res {spp_client cl1 "./server_example" } "cl1"
-test_err {spp_client clx "./server_example a"} "argument should be a positive integer"
+test_res {spp_client cl1 "./spp_server_test.tcl" } "cl1"
+test_err {spp_client clx "./spp_server_test.tcl a"} "argument should be a positive integer"
 
 test_err {cl1 cmd a}            {Unknown command: a}
 test_err {cl1 cmd "read 0"}     {can't read "var(0)": no such variable}

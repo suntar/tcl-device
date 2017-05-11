@@ -1,11 +1,11 @@
 ### Locking library
-### Use /tmp/tcl_locking/ for lock files (do you use tmpfs?).
+### Use /tmp/tcl_device_locks/ for lock files (do you use tmpfs?).
 ### Files contain PID of creator and valid while it is running.
 
-proc lock {name} {
+proc lock {name timeout} {
 
   # create folder for locks if needed
-  set fdir  "/tmp/tcl_locks"
+  set fdir  "/tmp/tcl_device_locks"
   if { ! [file exists $fdir] } {
     file mkdir $fdir
     file attributes $fdir -permissions 0777
@@ -13,7 +13,8 @@ proc lock {name} {
 
   # check lockfile, wait
   set fname "$fdir/$name"
-  # wait while lock file exists and its craetor is running 
+  # wait while lock file exists and its craetor is running
+  set dt 100
   while {1} {
     if { ! [file exists $fname] } { break }
     set f [open $fname r]
@@ -21,6 +22,8 @@ proc lock {name} {
     close $f
     if { ! [file isdirectory "/proc/$p"] } { break }
     after 100
+    set timeout [expr {$timeout-$dt}]
+    if {$timeout < 0} {error "Locking timeout: $name"}
   }
 
   # set new lock (use rename to prevent using temporary files)
@@ -36,7 +39,5 @@ proc unlock {name} {
   if { ! [file exists $fdir] } { return }
 
   set fname "$fdir/$name"
-  if { [file exists $fname] } {
-    file delete $fname
-  }
+  if { [file exists $fname] } { file delete $fname }
 }

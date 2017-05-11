@@ -22,7 +22,6 @@ TCL packages for my experimental computer
 for n in \
          GrapheneMonitor\
          ParseOptions-2.0\
-         Locking-2.0\
          GpibLib\
          Device\
          ; do
