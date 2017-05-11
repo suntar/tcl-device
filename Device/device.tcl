@@ -61,7 +61,9 @@ itcl::class Device {
   ####################################################################
   # run command, read response if needed
   method write {args} {
-    ::lock io_$name $io_lock_timeout
+    ::lock_wait $name    $lock_timeout
+    ::lock_wait io_$name $io_lock_timeout
+    ::lock io_$name
     set e [catch {set ret [$dev write $args]}]
     # unlock device before throwing an error
     ::unlock io_$name
@@ -72,7 +74,9 @@ itcl::class Device {
   ####################################################################
   # run command, read response if needed
   method cmd {args} {
-    ::lock io_$name $io_lock_timeout
+    ::lock_wait $name    $lock_timeout
+    ::lock_wait io_$name $io_lock_timeout
+    ::lock io_$name
     set e [catch {set ret [$dev cmd $args]}]
     # unlock device before throwing an error
     ::unlock io_$name
@@ -85,7 +89,9 @@ itcl::class Device {
   ####################################################################
   # read response
   method read {} {
-    ::lock io_$name $io_lock_timeout
+    ::lock_wait $name    $lock_timeout
+    ::lock_wait io_$name $io_lock_timeout
+    ::lock io_$name
     set e [catch {set ret [$dev read]}]
     # unlock device before throwing an error
     ::unlock io_$name
@@ -96,7 +102,12 @@ itcl::class Device {
   ####################################################################
   # High-level lock commands.
   # If you want to grab the device for a long time, use this
-  method lock {} { ::lock $name $lock_timeout }
-  method unlock {} { ::unlock $name }
+  method lock {} {
+    ::lock_wait $name $lock_timeout
+    ::lock $name
+  }
+  method unlock {} {
+    ::unlock $name
+  }
 
 }
