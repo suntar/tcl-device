@@ -1,5 +1,6 @@
 #!/usr/bin/tclsh
 
+source chan.tcl
 source spp_client.tcl
 
 # test that command returns an error

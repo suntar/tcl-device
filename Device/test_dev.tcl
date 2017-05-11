@@ -1,7 +1,7 @@
 #!/usr/bin/tclsh
 
 lappend auto_path ..
-package require Device 1.5
+package require Device 1.6
 
 
 #Device lockin0

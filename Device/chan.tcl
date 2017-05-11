@@ -10,9 +10,12 @@ itcl::class Chan {
   variable ch
   variable stop
   variable ret
+  variable name; # user-readable name of the channel (for error messages)
 
-  constructor {c} {
-    set ch $c
+  constructor {c {n ""}} {
+    set ch   $c
+    set name $n
+    if {$n == {}} {set name $c} else {set name $n}
     fconfigure $ch -blocking false -buffering line
   }
 
@@ -42,7 +45,7 @@ itcl::class Chan {
     vwait [itcl::scope stop]
     fileevent $ch readable {}
     after cancel $dd;
-    if {$stop == 2} {error "Read timeout"}
+    if {$stop == 2} {error "Read timeout: $name"}
     return $ret
   }
 
@@ -54,8 +57,11 @@ itcl::class Chan {
     vwait [itcl::scope stop]
     fileevent $ch writable {}
     after cancel $dd;
-    if {$stop == 2} {error "Write tiemout"}
+    if {$stop == 2} {error "Write timeout: $name"}
     return $ret
   }
+
+  method eof {} { ::eof $ch }
+
 }
 

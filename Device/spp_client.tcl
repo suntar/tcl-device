@@ -11,13 +11,13 @@ itcl::class spp_client {
   variable conn
   variable ch
   variable ver
+  variable timeout 2000
 
   constructor {prog_name} {
-    set conn [::open "| $prog_name" RDWR]
-    fconfigure $conn -buffering line -blocking yes
-    if { [eof $conn]} {
+    set conn [Chan #auto [::open "| $prog_name" RDWR] $prog_name]
+    if [$conn eof] {
       error "$prog_name: unknown protocol"}
-    set l [gets $conn]
+    set l [$conn read $timeout]
     if {![regexp {^(.)SPP([0-9]+)$} $l l ch ver]} {
       error "$prog_name: unknown protocol"}
     if {$ver != 001} {
@@ -31,20 +31,20 @@ itcl::class spp_client {
 
   # write command, read response until #OK or #Error line
   method cmd {c} {
-    puts $conn $c
+    $conn write $c $timeout
     read
   }
 
   # separate commands for reading and writing
   method write {c} {
-    puts $conn $c
+    $conn write $c $timeout
   }
 
   method read {} {
     set ret {}
     while {1} {
-      if { [eof $conn] } {return $ret}
-      set l [::gets $conn]
+      if [$conn eof] {return $ret}
+      set l [$conn read $timeout]
       if { [regexp "^${ch}${ch}" $l] } { set l [string range $l 1 end] }\
       else {
         if { [regexp -nocase "^${ch}Error: (.*)\$" $l e1 e2] } { error $e2 }
