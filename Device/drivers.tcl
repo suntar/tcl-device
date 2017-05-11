@@ -4,18 +4,6 @@
 
 package require Itcl
 
-####################################################################
-## read a line until \n character or timeout
-## dev should be configured with -blocking 0
-proc read_line_nb {dev timeout} {
-  while {$timeout>0} {
-    gets $dev res
-    if { [string length $res] } { return $res }
-    after 10
-    set timeout [expr {$timeout-10}]
-  }
-}
-
 namespace eval conn_drivers {
 
 ###########################################################
