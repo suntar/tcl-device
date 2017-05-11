@@ -1,5 +1,4 @@
 package require Itcl
-package require Locking 2.0
 
 # Open any device, send command, read response, close device.
 #
