@@ -23,8 +23,8 @@ itcl::class Device {
   variable gpib_addr;  # gpib address (for gpib_prologix driver)
 
   # timeouts
-  variable lock_timeout    2000; # user locks
-  variable io_lock_timeout 2000; # io locks
+  variable lock_timeout    5000; # user locks
+  variable io_lock_timeout 5000; # io locks
 
   ####################################################################
   constructor {} {

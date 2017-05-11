@@ -15,7 +15,7 @@ namespace eval conn_drivers {
 itcl::class gpib_prologix {
   variable host
   variable gpib_addr
-  variable timeout 2000
+  variable timeout 5000
 
   # open device
   constructor {pars} {
@@ -65,7 +65,7 @@ itcl::class gpib_prologix {
 # parameters: <host>
 itcl::class lxi_scpi_raw {
   variable dev
-  variable timeout 1000
+  variable timeout 5000
 
   # open device
   constructor {pars} {

@@ -11,7 +11,7 @@ itcl::class spp_client {
   variable conn
   variable ch
   variable ver
-  variable timeout 2000
+  variable timeout 5000
 
   constructor {prog_name} {
     set conn [Chan #auto [::open "| $prog_name" RDWR] $prog_name]
