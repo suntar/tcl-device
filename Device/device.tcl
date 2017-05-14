@@ -61,6 +61,7 @@ itcl::class Device {
   ####################################################################
   # run command, read response if needed
   method write {args} {
+    update
     ::lock_wait $name    $lock_timeout 1
     ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
@@ -74,6 +75,7 @@ itcl::class Device {
   ####################################################################
   # run command, read response if needed
   method cmd {args} {
+    update
     ::lock_wait $name    $lock_timeout 1
     ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
@@ -89,6 +91,7 @@ itcl::class Device {
   ####################################################################
   # read response
   method read {} {
+    update
     ::lock_wait $name    $lock_timeout 1
     ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
