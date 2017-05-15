@@ -11,9 +11,11 @@ proc lock {name} {
     file mkdir $::lock_folder
     file attributes $::lock_folder -permissions 0777
   }
-  # set new lock (use rename to prevent using temporary files)
+  # set new lock (use unique tmp file and rename to avoid collisions)
   set fname "$::lock_folder/$name"
-  set ftmp  "$::lock_folder/tmp_$name"
+  set i [expr int(1000*rand())]
+  while {[file exists [set ftmp $::lock_folder/tmp_${name}_${i}]]} {incr i}
+
   set f [open $ftmp w]
   puts $f [pid]
   close $f
