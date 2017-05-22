@@ -20,7 +20,6 @@ itcl::class Device {
   variable name;   # device name
   variable drv;    # device driver
   variable pars;   # driver parameters
-  variable gpib_addr;  # gpib address (for gpib_prologix driver)
 
   # timeouts
   variable lock_timeout    5000; # user locks
