@@ -46,15 +46,19 @@ itcl::class SweepController {
     if {$ps_dev  == {} } { error "ps_dev is empty" }
     Device $ps_dev
     $ps_dev lock
-    set model [$ps_dev get_model]
-    set dev [current_supply_devices::$model #auto SweepController::$ps_dev]
+#    set model [$ps_dev get_model]
+
+    set idn [$ps_dev cmd *idn?]
+#    {Agilent Technologies,N6700B}
+#    set dev [current_supply_devices::$model #auto SweepController::$ps_dev]
 
     if {$ps_dev2 != {}} {
       if {$ps_dev == $ps_dev2} {error "same devices for both channels"}
       Device $ps_dev2
       $ps_dev2 lock
-      set model2 [$ps_dev2 get_model]
-      set dev2 [current_supply_devices::$model2 #auto SweepController::$ps_dev2]
+      set idn2 [$ps_dev2 cmd *idn?]
+#      set model2 [$ps_dev2 get_model]
+#      set dev2 [current_supply_devices::$model2 #auto SweepController::$ps_dev2]
     }
 
     # Open database if needed

@@ -6,7 +6,7 @@ Summary:      TCL packages for my experimental computer
 Group:        System
 URL:          https://github.com/slazav/exp_tcl
 License:      GPL
-
+BuildArch:    noarch
 Packager:     Vladislav Zavjalov <slazav@altlinux.org>
 
 Source:       %name-%version.tar
@@ -23,15 +23,10 @@ for n in \
          GrapheneMonitor\
          GrapheneViewer\
          ParseOptions-2.0\
-         GpibLib\
          Device\
          ; do
-  [ ! -s "$n/Makefile" ] || make -C $n
   mkdir -p %buildroot/%_tcldatadir/$n/
-  mkdir -p %buildroot/%_libdir/tcl/
   install -m644 $n/*.tcl %buildroot/%_tcldatadir/$n/ ||:
-  install -m644 $n/*.so  %buildroot/%_libdir/tcl/ ||:
-  sed -i -e 's|%%LIB_DIR%%|%_libdir/tcl/|' %buildroot/%_tcldatadir/$n/pkgIndex.tcl
 done
 mkdir -p %buildroot/%_bindir/
 install -m755 bin/*  %buildroot/%_bindir/ ||:
@@ -39,7 +34,6 @@ install -m755 bin/*  %buildroot/%_bindir/ ||:
 
 %files
 %_tcldatadir/*
-%_libdir/tcl/*
 %_bindir/*
 
 %changelog
