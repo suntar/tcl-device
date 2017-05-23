@@ -25,7 +25,10 @@ proc lock {name} {
 proc unlock {name} {
   if { ! [file exists $::lock_folder] } { return }
   set fname "$::lock_folder/$name"
-  if { [file exists $fname] } { file delete $fname }
+  # We do not want to check that file exists, because
+  # it can disappear before deleting.
+  # Instead we just delete it and ignore possible errors.
+  catch { file delete $fname }
 }
 
 # Wait for a lock.
