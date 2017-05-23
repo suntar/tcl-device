@@ -1,6 +1,7 @@
 package provide GrapheneMonitor 1.3
 package require Itcl
 package require xBlt 3
+package require Device
 
 namespace eval graphene {
 
@@ -63,22 +64,7 @@ itcl::class monitor_module {
   method stop  {} {}
 
 
-  # run get method regularly, save data
-  method start_run {} {
-    global $vvar
-
-    # sweeper: make a step
-    if {$sweeper !=0 && $srun != 0} {
-      set s0 [expr {$s0 + $ds*$sdir}];
-      if {$s0 > $smax} {set sdir -1}
-      if {$s0 < $smin} {set sdir +1}
-    }
-
-    # shift old values, measure new one
-    set v2 $v1
-    set v1 $v0
-    set v0 [get]
-
+  method save_data {} {
     # data filtering: do not save point if change was small
     set save 1
     set dt [expr {$dt + int($tmin*1000)}]
@@ -122,10 +108,36 @@ itcl::class monitor_module {
       if {$dbcon!={}} {$dbcon cmd put $dbname now {*}$res}
       set dt 0
     }
+    if {$verb} {puts [list $this: del: $tmin save: $save val $res ]}
+  }
+
+  # run get method regularly, save data
+  method start_run {} {
+    global $vvar
+
+    # sweeper: make a step
+    if {$sweeper !=0 && $srun != 0} {
+      set s0 [expr {$s0 + $ds*$sdir}];
+      if {$s0 > $smax} {set sdir -1}
+      if {$s0 < $smin} {set sdir +1}
+    }
+
+    # shift old values, measure new one
+    set v2 $v1
+    set v1 $v0
+    if {[catch { set v0 [get] }]} {
+      set e $::errorInfo
+      set n [string first "\n" $e]
+      if {n>0} { set e [string range $e 0 [expr $n-1]]}
+      puts "$this error: $e"
+    }\
+    else {
+      save_data
+    }
+
 
     # run the next iteration
     set rh [after [expr int(1000*$tmin)] $this start_run]
-    if {$verb} {puts [list $this: del: $tmin save: $save val $res ]}
   }
 
 
