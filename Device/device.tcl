@@ -64,7 +64,7 @@ itcl::class Device {
     ::lock_wait $name    $lock_timeout 1
     ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
-    set e [catch {set ret [$dev write $args]}]
+    set e [catch {set ret [$dev write [join $args " "]]}]
     # unlock device before throwing an error
     ::unlock io_$name
     if {$e} {error $::errorInfo}
@@ -78,7 +78,7 @@ itcl::class Device {
     ::lock_wait $name    $lock_timeout 1
     ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
-    set e [catch {set ret [$dev cmd $args]}]
+    set e [catch {set ret [$dev cmd [join $args " "]]}]
     # unlock device before throwing an error
     ::unlock io_$name
     if {$e} {error $::errorInfo}

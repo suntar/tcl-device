@@ -1,8 +1,11 @@
 #!/usr/bin/tclsh
 
-lappend auto_path ..
-package require Device 1.6
-
+source ./spp_client.tcl
+source ./spp_server.tcl
+source ./device.tcl
+source ./drivers.tcl
+source ./chan.tcl
+source ./locking.tcl
 
 #Device lockin0
 #puts [lockin0 cmd *IDN?]
@@ -17,7 +20,7 @@ package require Device 1.6
 #puts [mult_ag cmd *IDN?]
 
 Device db_local
-db_local cmd create test2 DOUBLE
+db_local cmd "create test2 DOUBLE"
 
 #Device osc0
 #puts [osc0 cmd chan_set]

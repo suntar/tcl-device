@@ -32,10 +32,10 @@ itcl::class gpib_prologix {
     }
   }
   # write to device without reading answer
-  method write {args} {
+  method write {v} {
     set dev [Chan #auto [::socket $host 1234] $host]
     set_addr $dev
-    $dev write {*}$args $timeout
+    $dev write $v $timeout
     itcl::delete object $dev
     return
   }
@@ -48,12 +48,11 @@ itcl::class gpib_prologix {
     return $ret
   }
   # write and then read
-  method cmd {args} {
+  method cmd {v} {
     set dev [Chan #auto [::socket $host 1234] $host]
     set_addr $dev
-    set cmd {*}$args
-    $dev write $cmd $timeout
-    if [regexp {\?} $cmd] { set ret [$dev read $timeout] }\
+    $dev write $v $timeout
+    if [regexp {\?} $v] { set ret [$dev read $timeout] }\
     else { set ret ""}
     itcl::delete object $dev
     return $ret
@@ -77,16 +76,16 @@ itcl::class lxi_scpi_raw {
     itcl::delete object $dev
   }
   # write to device without reading answer
-  method write {args} {
-    $dev write {*}$args $timeout
+  method write {v} {
+    $dev write $v $timeout
   }
   # read from device
   method read {} {
     return [$dev read $timeout]
   }
   # write and then read
-  method cmd {args} {
-    set cmd {*}$args
+  method cmd {v} {
+    set cmd $v
     $dev write $cmd $timeout
     if [regexp {\?} $cmd] { return [$dev read $timeout] }\
     else {return ""}
@@ -103,12 +102,11 @@ itcl::class gpib {
     set dev [gpib_device #auto {*}$pars]
   }
   destructor { gpib_device delete $dev }
-  method write {args} { $dev write {*}$args }
+  method write {v} { $dev write $v }
   method read {} { return [$dev read ] }
-  method cmd {args} {
-    set cmd {*}$args
-    if [regexp {\?} $cmd] { return [$dev cmd_read {*}$args] }\
-    else {$dev write {*}$args; return ""}
+  method cmd {v} {
+    if [regexp {\?} $v] { return [$dev cmd_read $v] }\
+    else {$dev write $v; return ""}
   }
 }
 
@@ -140,8 +138,8 @@ itcl::class tenma_ps {
     ::close $dev
   }
   # write to device without reading answer
-  method write {args} {
-    puts -nonewline $dev {*}$args; # no newline!
+  method write {v} {
+    puts -nonewline $dev $v; # no newline!
     after $del
     flush $dev
   }
@@ -151,8 +149,8 @@ itcl::class tenma_ps {
     return [::read $dev $bufsize]
   }
   # write and then read
-  method cmd {args} {
-    set cmd [string toupper {*}$args]
+  method cmd {v} {
+    set cmd [string toupper $v]
     puts -nonewline $dev $cmd
     flush $dev
     after $del
