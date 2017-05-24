@@ -2,19 +2,19 @@
 
 # current sweeper with stdin/stdout interface
 
-package require Device 1.3
+package require Device
+package require DeviceRole 1.0
 package require ParseOptions 2.0
 
 #############################################################
 ## Command line options:
 set options [list \
-{-p -ps_dev}   ps_dev   {}       {power supply device}\
+{-p -ps_dev1}  ps_dev1  {}       {power supply device}\
 {-P -ps_dev2}  ps_dev2  {}       {power supply device - 2nd channel}\
 {-d -db_dev}   db_dev   {}       {database device (can be empty)}\
 {-n -db_val}   db_val   {}       {database name for numerical values}\
 {-a -db_ann}   db_ann   {}       {database name for annatations}\
-{-v -volt}     volt     {1}      {set voltage, V}\
-{-o -ovp}      ovp      {1}      {set over-voltage protection }\
+{-v -max_volt} max_volt {1}      {max voltage, V}\
 {-m -max_rate} max_rate {1}      {max rate}\
 {-t -min_t_step} min_t_step {0.5} {min t step}\
 ]
@@ -22,18 +22,18 @@ set options [list \
 #############################################################
 
 itcl::class SweepController {
-  variable dev;  # device implementation handler
-  variable dev2; # device implementation handler -- 2nd chan
-  variable rh;   # ramping loop handler
-  variable cs1;  # set current - 1st chan
-  variable cs2;  # set current - 2nd chan
-                               # set and measured current, A
-  variable ps_dev
-  variable ps_dev2
+  variable dev1 {}; # device driver handler
+  variable dev2 {}; # device driver handler -- 2nd chan
+  variable rh;      # ramping loop handler
+  variable cs1;     # set current - 1st chan
+  variable cs2;     # set current - 2nd chan
+                    # set and measured current, A
+
+
   variable db_dev
   variable db_val
   variable db_ann
-  variable volt
+  variable max_volt
   variable ovp
   variable max_rate
   variable min_t_step
@@ -43,22 +43,14 @@ itcl::class SweepController {
     global options
     parse_options "sweeper" $opts $options
 
-    if {$ps_dev  == {} } { error "ps_dev is empty" }
-    Device $ps_dev
-    $ps_dev lock
-#    set model [$ps_dev get_model]
-
-    set idn [$ps_dev cmd *idn?]
-#    {Agilent Technologies,N6700B}
-#    set dev [current_supply_devices::$model #auto SweepController::$ps_dev]
+    if {$ps_dev1  == {} } { error "ps_dev1 is empty" }
+    set dev1 [DeviceRole $ps_dev1 power_supply]
+    $dev1 lock
 
     if {$ps_dev2 != {}} {
-      if {$ps_dev == $ps_dev2} {error "same devices for both channels"}
-      Device $ps_dev2
-      $ps_dev2 lock
-      set idn2 [$ps_dev2 cmd *idn?]
-#      set model2 [$ps_dev2 get_model]
-#      set dev2 [current_supply_devices::$model2 #auto SweepController::$ps_dev2]
+      if {$ps_dev1 == $ps_dev2} {error "same devices for both channels"}
+      set dev2 [DeviceRole $ps_dev2 power_supply]
+      $dev2 lock
     }
 
     # Open database if needed
@@ -68,37 +60,38 @@ itcl::class SweepController {
   }
 
   destructor {
-    $ps_dev unlock
-    if {$ps_dev2 != {}} { $ps_dev2 unlock }
+    $dev1 unlock
+    if {$d2 != {}} { $dev2 unlock }
   }
 
   ######################################
 
   # set current for both channels (internal)
   method set_curr {ch val} {
-    if {$ch == 1} { set cs1 [expr {$val-$cs2}]; $dev set_curr $cs1 }\
+    if {$ch == 1} { set cs1 [expr {$val-$cs2}]; $dev1 set_curr $cs1 }\
     else          { set cs2 [expr {$val-$cs1}]; $dev2 set_curr $cs2 }
   }
 
-  # measured current (sum for both channels)
-  method get_mcurr {}    {
-    set c1 [ $dev get_curr ]
-    if {$ps_dev2 != {}} {
+  # get measured current (sum for both channels)
+  method get_mcurr {} {
+    set c1 [ $dev1 get_curr ]
+    if {$dev2 != {}} {
       set c2 [$dev2 get_curr]
       set c1 [expr {$c1 + $c2}]
     }
     return $c1
   }
 
-  # set gurrent
+  # get previously set current (sum for both channels)
   method get_scurr {} {
     return [expr $cs1+$cs2]
   }
 
   # voltage (1st channel only)
-  method get_volt {} { return [ $dev get_volt ]}
+  method get_volt {} { return [ $dev1 get_volt ]}
 
-  method get_stat {} { return [ $dev get_stat ]}
+  # stat (1st channel only)
+  method get_stat {} { return [ $dev1 get_stat ]}
 
 
   # Return list of commands which can be run from stdin.
@@ -114,11 +107,15 @@ itcl::class SweepController {
     after cancel $rh
     set $rh {}
 
-    $dev reset $volt $ovp
-    if {$ps_dev2 != {}} { $dev2 reset $volt $ovp }
+    $dev1 set_ovp $max_volt
+    $dev1 cc_reset
+    if {$dev2 != {}} {
+      $dev2 set_ovp $max_volt
+      $dev2 cc_reset
+    }
 
-    set cs1 [ $dev get_curr ]
-    if {$ps_dev2 != {}} { set cs2 [$dev2 get_curr] } else {set cs2 0}
+    set cs1 [ $dev1 get_curr ]
+    if {$d2 != {}} { set cs2 [$dev2 get_curr] } else {set cs2 0}
 
     return
   }
@@ -146,31 +143,31 @@ itcl::class SweepController {
 
     after cancel $rh
 
+
     # get device parameters
-    set min_i_step [$dev get_min_i_step]
-    set max_i [$dev get_max_i]
-    set min_i [$dev get_min_i]
-    set tolerance [$dev get_tolerance]
-    if {$ps_dev2 != {}} {
-      set min_i_step2 [$dev2 get_min_i_step]
-      set max_i2 [$dev2 get_max_i]
-      set min_i2 [$dev2 get_min_i]
-      set tolerance2 [$dev2 get_tolerance]
+    set min_i_step [$dev1 cget -min_i_step]
+    set max_i [$dev1 cget -max_i]
+    set min_i [$dev1 cget -min_i]
+    if {$dev2 != {}} {
+      set min_i_step2 [$dev2 cget -min_i_step]
+      set max_i2 [$dev2 cget -max_i]
+      set min_i2 [$dev2 cget -min_i]
     } else {
       set min_i_step2 1
       set max_i2 0
       set min_i2 0
-      set tolerance2 1e-10
     }
+
 
     # limit rate and destination
     if {$dest > $max_i + $max_i2} {set dest [expr {$max_i+$max_i2}]}
     if {$dest < $min_i + $min_i2} {set dest [expr {$min_i+$min_i2}]}
     if {$rate > $max_rate} {set rate $max_rate}
 
+
     # put current value in the database
-    set cm1 [ $dev get_curr ]
-    if {$ps_dev2 != {}} { set cm2 [$dev2 get_curr] } else {set cm2 0}
+    set cm1 [ $dev1 get_curr ]
+    if {$dev2 != {}} { set cm2 [$dev2 get_curr] } else {set cm2 0}
     set cm [expr {$cm1+$cm2}]
     set cs [expr {$cs1+$cs2}]
 
@@ -179,9 +176,9 @@ itcl::class SweepController {
       $db_dev cmd "sync"
     }
 
+
     # find sweep direction
     if {$cs < $dest} {set dir 1} else {set dir -1}
-
 
 
     # time step for fast/slow sweeps:
@@ -194,6 +191,7 @@ itcl::class SweepController {
     # set current step
     set di [expr {1.0*$dir*$rate*$dt}]
 
+
     # same for second channel
     if { $rate > [expr {$min_i_step2/$min_t_step}] } {
       set dt2 $min_t_step
@@ -205,10 +203,9 @@ itcl::class SweepController {
     set di2 [expr {1.0*$dir*$rate*$dt}]
 
 
-
     # find channel we want to sweep
     set ch 1
-    if {$ps_dev2 != {} &&\
+    if {$dev2 != {} &&\
        (($dir==1  && $cs2 < $max_i2) ||\
         ($dir==-1 && $cs2 > $min_i2)) } {
       set ch 2
@@ -226,9 +223,9 @@ itcl::class SweepController {
       }
     }
 
-
-    # stop ramping if the real current is outside the tolerance
-
+    # stop ramping if the real current jumped outside the tolerance
+    set tolerance  [expr 10*min_i_step]
+    set tolerance2 [expr 10*min_i_step2]
     if { abs($cm1-$cs1) > $tolerance ||\
          abs($cm2-$cs2) > $tolerance2} {
       set cs1 $cm1
@@ -252,7 +249,7 @@ itcl::class SweepController {
       after $dt_ms
 
       set cm1 [ $dev get_curr ]
-      if {$ps_dev2 != {}} { set cm2 [$dev2 get_curr] } else {set cm2 0}
+      if {$dev2 != {}} { set cm2 [$dev2 get_curr] } else {set cm2 0}
       set cm [expr {$cm1 + $cm2}]
       set cs [expr {$cs1 + $cs2}]
 
@@ -280,204 +277,7 @@ itcl::class SweepController {
   }
 }
 
-#############################################################
-## device implementations:
-namespace eval current_supply_devices {
-
-  ######################################
-  # Tenma 72-2550
-  itcl::class tenma_72-2550 {
-    variable ps_dev
-
-    ## set device parameters and reset device
-    constructor {conn} { set ps_dev $conn}
-    method get_min_i_step {} {return 0.001}
-    method get_max_i      {} {return 3.09}
-    method get_min_i      {} {return 0}
-    method get_tolerance  {} {return 0.01}
-
-    method reset {volt ovp} {
-      ## set voltage if needed
-      if { $volt > 0 } {
-        set volt [expr {round($volt*100)/100.0}]
-        $ps_dev cmd "VSET1:$volt"
-      }
-      ## set OVP if needed
-      if { $ovp != {} && $ovp != 0 } {
-        $ps_dev cmd "OVP1"
-      } else {
-        $ps_dev cmd "OVP0"
-      }
-      ## set current to actual current, turn output on
-      set status [$ps_dev cmd "STATUS?"]
-      set c [$ps_dev cmd "IOUT1?"]
-      $ps_dev cmd "ISET1:$c"
-      $ps_dev cmd "OUT1"
-    }
-
-    method set_curr {val} {
-      set val [expr {round($val*1000)/1000.0}]
-      $ps_dev cmd "ISET1:$val"
-    }
-    method get_curr {} {
-      return [$ps_dev cmd "IOUT1?"]
-    }
-    method get_volt {} {
-      return [$ps_dev cmd "VOUT1?"]
-    }
-
-    method get_stat {} {
-      # error states
-      binary scan [$ps_dev cmd "STATUS?"] cu n
-      if {$n==80 || $n==63}  {return CC}
-      if {$n==79 || $n==81}  {return CV}
-      return "OFF"
-    }
-
-  }
-
-
-  ######################################
-  # Keysight N6700B
-  itcl::class keysight_n6700b {
-    variable ps_dev
-    variable N 1;  ## channel number
-    variable R 3;  ## current range
-
-    variable min_i_step;
-    variable max_i;
-    variable min_i;
-    variable tolerance;
-
-    ## set device parameters and reset device
-    constructor {conn} {
-      set ps_dev $conn
-
-      # module type
-      set mod [$ps_dev cmd "syst:chan:mod? (@$N)"]
-      switch -- $mod {
-        N6731B {
-          set min_i_step  1e-2
-          set min_i 0.06;
-        }
-        N6762A {
-          # module has two current ranges: 0.1 and 3A
-          $ps_dev write "curr:rang $R,(@$N)"
-          set max_i [$ps_dev cmd "curr:rang? (@$N)"]
-          set min_i 1e-3;
-          set min_i_step 1e-4
-          if {$max_i < 0.12} {
-             set min_i 1e-4;
-             set min_i_step  1e-5
-          }
-        }
-        default { error "unknown module: $mod"}
-      }
-      set max_i [$ps_dev cmd "curr:rang? (@$N)"]
-      set tolerance [expr 10*$min_i_step]
-    }
-    method get_min_i_step {} {return $min_i_step}
-    method get_max_i      {} {return $max_i}
-    method get_min_i      {} {return $min_i}
-    method get_tolerance  {} {return $tolerance}
-
-    method reset {volt ovp} {
-      ## set voltage if needed
-      if { $volt > 0 } {
-        $ps_dev write "volt $volt,(@$N)"
-      }
-      ## set OVP if needed
-      if { $ovp != {} && $ovp != 0 } {
-        $ps_dev write "volt:prot $volt,(@$N)"
-      } else {
-      }
-      ## set current to actual current, turn output on
-      set c [$ps_dev cmd "meas:curr? (@$N)"]
-      $ps_dev write "curr $c,(@$N)"
-      $ps_dev write "outp:prot:cle (@$N)"
-      $ps_dev write "outp on,(@$N)"
-    }
-
-    method set_curr {val} {
-      $ps_dev write "curr $val,(@$N)"
-    }
-    method get_curr {} {
-      return [$ps_dev cmd "meas:curr? (@$N)"]
-    }
-    method get_volt {} {
-      return [$ps_dev cmd "meas:volt? (@$N)"]
-    }
-    method get_stat {} {
-      # error states
-      set n [$ps_dev cmd "stat:ques:cond? (@$N)"]
-      if {! [string is integer $n] } {return {}}
-      if {$n & 1} {return OV}
-      if {$n & 2} {return OC}
-      if {$n & 4} {return PF}
-      if {$n & 8} {return CP+}
-      if {$n & 16} {return OT}
-      if {$n & 32} {return CP-}
-      if {$n & 64} {return OV-}
-      if {$n & 128} {return LIM+}
-      if {$n & 256} {return LIM-}
-      if {$n & 512} {return INH}
-      if {$n & 1024} {return UNR}
-      if {$n & 2048} {return PROT}
-      if {$n & 4096} {return OSC}
-      set n [$ps_dev cmd "stat:oper:cond? (@$N)"]
-      if {! [string is integer $n] } {return {}}
-      if {$n & 1} {return CV}
-      if {$n & 2} {return CC}
-      if {$n & 4} {return OFF}
-      return ""
-    }
-  }
-
-  ### separate class for each channel:
-  itcl::class keysight_n6700b:1H {
-    inherit keysight_n6700b
-    constructor {conn} {
-      set N 1; set R 3
-      keysight_n6700b::constructor $conn
-    } {}
-  }
-  itcl::class keysight_n6700b:2H {
-    inherit keysight_n6700b
-    constructor {conn} {
-      set N 2; set R 3
-      keysight_n6700b::constructor $conn
-    } {}
-  }
-  itcl::class keysight_n6700b:1L {
-    inherit keysight_n6700b
-    constructor {conn} {
-      set N 1; set R 0.09
-      keysight_n6700b::constructor $conn
-    } {}
-  }
-  itcl::class keysight_n6700b:2L {
-    inherit keysight_n6700b
-    constructor {conn} {
-      set N 2; set R 0.09
-      keysight_n6700b::constructor $conn
-    } {}
-  }
-  itcl::class keysight_n6700b:3 {
-    inherit keysight_n6700b
-    constructor {conn} {
-      set N 3; set R 4
-      keysight_n6700b::constructor $conn
-    } {}
-  }
-  itcl::class keysight_n6700b:4 {
-    inherit keysight_n6700b
-    constructor {conn} {
-      set N 4; set R 4
-      keysight_n6700b::constructor $conn
-    } {}
-  }
-}
 
 #############################################################
 
-cli::run SweepController $argv
+spp::run SweepController $argv
