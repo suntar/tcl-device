@@ -1,0 +1,17 @@
+#!/usr/bin/tclsh
+
+foreach f {role\
+          power_supply power_supply/keysight_n6700b power_supply/tenma_72-2550\
+         } {
+  source "./$f.tcl"
+}
+
+
+set dev [DeviceRole ps1 power_supply]
+
+puts [$dev cc_reset]
+after 100
+
+$dev set_curr 0.2
+puts [$dev get_curr]
+puts [$dev get_stat]
