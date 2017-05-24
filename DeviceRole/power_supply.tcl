@@ -64,5 +64,8 @@ namespace eval device_role::power_supply {
     #  OC  - overcurent protection triggered
     # ...
     method get_stat {} {};
+
+    method lock {} {$dev lock}
+    method unlock {} {$dev unlock}
   }
 }
