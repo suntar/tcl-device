@@ -1,17 +1,16 @@
-    Experimental setup for 3He NMR measurements on dry demag cryostat
+## Experimental setup for 3He NMR measurements on dry demag cryostat
 
-    Hardware
+### Hardware
 
 There is a rack with a computer (Altlinux OS), network switch and
-devices. The switch is configured for two networks^ internal and
+devices. The switch is configured for two networks: internal and
 external. All devices are connected to the internal one, computer can
 see both, external network is connected to NANO network.
 
-
 Devices with ethernet interface connected directly to the switch; GPIB
 devices are connected through a Prologix gpib2eth converter; USB devices
-are connected to computer directly. There is a possibility to use
-gpib2usb converter.
+are connected to the computer directly. There is a possibility to use
+Agilent gpib2usb converter.
 
 TODO: make guest user on the computer, make regular backups (now it is done manually)
 
@@ -25,28 +24,37 @@ Devices:
 
 TODO: second NMR channel (lockin, 2-ch generator)
 
+---
+### Software
 
-    Software
+* TCL GPIB library ( https://github.com/slazav/tcl-gpib )
+https://github.com/slazav/gpib-firmware
+https://github.com/slazav/linux-gpib
 
-TCL Device library ( https://github.com/slazav/exp_tcl/tree/master/Device ) --
-access devices and programs from command line or tcl script. Locks, timeouts,
-error messages, remote access etc.
+* TCL Device library ( https://github.com/slazav/exp_tcl/tree/master/Device ) --
+access devices and programs from command line or tcl script. Locks,
+timeouts, error messages, remote access etc. Client programs can use
+devices without knowladge of how they are connected.
 
-Graphene database ( https://github.com/slazav/graphene ) -- storing data
+* TCL DeviceRole library -- device roles. Client programs can use a
+device in some special role (like multimeter, power supply etc.) whithout
+knowing its model and command set.
+
+* Graphene database ( https://github.com/slazav/graphene ) -- storing data
 and comments with timestamps. Fast access to data. Can be used from
 command line or through TCL Device library. Databases can be browsed
 using Graphana server or GrapheneViewer.
 
-Pico_rec ( https://github.com/slazav/pico_osc ) -- recording signals
+* Pico_rec ( https://github.com/slazav/pico_osc ) -- recording signals
 using Pico4224 oscilloscope, processing signals (noise spectra, sliding
 FFT, fitting fork signals, crosscorrelation etc.) Can be used from 
 command line or through TCL Device library.
 
-GrapheneMonitor ( https://github.com/slazav/exp_tcl/tree/master/GrapheneMonitor ) --
+* GrapheneMonitor ( https://github.com/slazav/exp_tcl/tree/master/GrapheneMonitor ) --
 TCl library for writing modules (scripts for making regular measurements)
 and monitor panels which run modules, store data in a database, show data plots.
 
-GrapheneViewer ( https://github.com/slazav/exp_tcl/tree/master/GrapheneViewer ) --
+* GrapheneViewer ( https://github.com/slazav/exp_tcl/tree/master/GrapheneViewer ) --
 TCL library for making graphene database wiewers. Fast access to large amounts of
 data and comments, autoupdate etc.
 
