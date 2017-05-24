@@ -24,13 +24,17 @@ for n in \
          GrapheneViewer\
          ParseOptions-2.0\
          Device\
+         DeviceRole\
          ; do
   mkdir -p %buildroot/%_tcldatadir/$n/
-  install -m644 $n/*.tcl %buildroot/%_tcldatadir/$n/ ||:
+  for f in $n/*; do
+    if [ -d $f -o ${f%%.tcl} != $f ]; then
+      cp -r $f %buildroot/%_tcldatadir/$n/
+    fi
+  done
 done
 mkdir -p %buildroot/%_bindir/
 install -m755 bin/*  %buildroot/%_bindir/ ||:
-
 
 %files
 %_tcldatadir/*
