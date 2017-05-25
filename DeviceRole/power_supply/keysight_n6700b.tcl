@@ -63,8 +63,14 @@ itcl::class device_role::power_supply::keysight_n6700b {
 
   method set_volt {val} { $dev cmd "volt $val,(@$chan)" }
   method set_curr {val} { $dev cmd "curr $val,(@$chan)" }
-  method set_ovp  {val} { $dev cmd "volt:prot $val,(@$chan)" }
-  method set_ocp  {val} { $dev cmd "curr:prot $val,(@$chan)" }
+  method set_ovp  {val} {
+    $dev cmd "volt $val,(@$chan)"
+    $dev cmd "volt:prot $val,(@$chan)"
+  }
+  method set_ocp  {val} {
+    $dev cmd "curr $val,(@$chan)"
+    $dev cmd "curr:prot $val,(@$chan)"
+  }
   method get_curr {} {return [$dev cmd "meas:curr? (@$chan)"]}
   method get_volt {} {return [$dev cmd "meas:volt? (@$chan)"]}
 
