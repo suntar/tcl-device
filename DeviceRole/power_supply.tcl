@@ -9,8 +9,9 @@ namespace eval device_role::power_supply {
 
   ## Detect device model, create and return driver object for it
   proc create {name chan} {
-    # create device, ask for ID
-    Device $name
+    # Create device if needed, ask for ID.
+    # Many drivers can use a single device (different channels, different roles)
+    if {[info commands $name]=={}} { Device $name }
     set ID [$name cmd *IDN?]
 
     set n [namespace current]
