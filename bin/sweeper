@@ -34,7 +34,6 @@ itcl::class SweepController {
   variable db_val
   variable db_ann
   variable max_volt
-  variable ovp
   variable max_rate
   variable min_t_step
 
@@ -61,7 +60,7 @@ itcl::class SweepController {
 
   destructor {
     $dev1 unlock
-    if {$d2 != {}} { $dev2 unlock }
+    if {$dev2 != {}} { $dev2 unlock }
   }
 
   ######################################
@@ -115,7 +114,7 @@ itcl::class SweepController {
     }
 
     set cs1 [ $dev1 get_curr ]
-    if {$d2 != {}} { set cs2 [$dev2 get_curr] } else {set cs2 0}
+    if {$dev2 != {}} { set cs2 [$dev2 get_curr] } else {set cs2 0}
 
     return
   }
@@ -224,8 +223,8 @@ itcl::class SweepController {
     }
 
     # stop ramping if the real current jumped outside the tolerance
-    set tolerance  [expr 10*min_i_step]
-    set tolerance2 [expr 10*min_i_step2]
+    set tolerance  [expr 100*$min_i_step]
+    set tolerance2 [expr 100*$min_i_step2]
     if { abs($cm1-$cs1) > $tolerance ||\
          abs($cm2-$cs2) > $tolerance2} {
       set cs1 $cm1
@@ -248,7 +247,7 @@ itcl::class SweepController {
       if {$dt_ms <0 } {set dt_ms 0}
       after $dt_ms
 
-      set cm1 [ $dev get_curr ]
+      set cm1 [ $dev1 get_curr ]
       if {$dev2 != {}} { set cm2 [$dev2 get_curr] } else {set cm2 0}
       set cm [expr {$cm1 + $cm2}]
       set cs [expr {$cs1 + $cs2}]
@@ -280,4 +279,4 @@ itcl::class SweepController {
 
 #############################################################
 
-spp::run SweepController $argv
+spp_server::run SweepController $argv
