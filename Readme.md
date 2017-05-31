@@ -1,4 +1,4 @@
-### Device library
+## Device library
 ---
 
 This is a tcl library for making complicated experimental setups.
@@ -32,7 +32,7 @@ a device for a long time).
 
 Library provides logging of all commands and answers.
 
-### Interface (see Device/device.tcl)
+## Interface (see `Device/device.tcl`)
 ---
 
 * Device <name> -- open a device <name>. The command <name> is created to access the device.
@@ -46,7 +46,7 @@ Library provides logging of all commands and answers.
 In case of error a tcl error is called. Use catch to process it.
 
 
-### Drivers (see `Device/drivers.tcl`)
+## Drivers (see `Device/drivers.tcl`)
 ---
 
 * gpib_prologix -- GPIB device connected through Prologix gpib2eth converter.
@@ -82,7 +82,7 @@ In case of error a tcl error is called. Use catch to process it.
   Parameters: character device (such as /dev/ttyACM0).
 
 
-### Simple pipe protocol, version 001
+## Simple pipe protocol (SPP)
 ---
 
 There are two programs, "server" and "client". Client runs the server
@@ -92,8 +92,8 @@ written line by line in a human-readable form if possible.
 When connection is opened, server writes a line with the special symbol
 ('#' in this example, but it can be any symbol), protocol name and
 version: "#SPP001". Then it can write some text for the user which can be
-ignored. Then it either writes '#Error: <message>' and exits or writes
-'#OK' and start listening for user requests. Simbol '#' here is a special
+ignored. Then it either writes `#Error: <message>` and exits or writes
+`#OK` and start listening for user requests. Simbol '#' here is a special
 symbol which was selected in the beginning of the conversation.
 
 Request is one line of text.
@@ -109,7 +109,7 @@ device. Then clients can check that
 * TODO: timeouts, safe closing of the channel...
 * TODO: raw data transfer
 
-## Conversation example (see spp_server_test.tcl program):
+## Conversation example (see `spp_server_test.tcl program`):
 
 ```
 $ ./spp_server_test.tcl
@@ -170,7 +170,7 @@ from command line or through Device library.
 ## Remote communication
 
 You can easily add remote devices using spp interface. In the
-configuration file it can be written as
+configuration file of the Device library it can be written as
 ```
 lockin0          ssh <remote address> device -d lockin0
 graphene_remote  ssh <remote address> graphene -i
