@@ -4,19 +4,28 @@
 
 package require Device
 package require DeviceRole 1.0
-package require ParseOptions 2.0
+package require xBlt
 
 #############################################################
 ## Command line options:
+# -p -ps_dev1    -- power supply device
+# -P -ps_dev2    -- power supply device - 2nd channel
+# -d -db_dev     -- database device (can be empty)
+# -n -db_val     -- database name for numerical values
+# -a -db_ann     -- database name for annatations
+# -v -max_volt   -- max voltage, V (default 1)
+# -m -max_rate   -- max rate, A/S (default 1)
+# -t -min_t_step -- min t step, s (default 0.5)
+
 set options [list \
-{-p -ps_dev1}  ps_dev1  {}       {power supply device}\
-{-P -ps_dev2}  ps_dev2  {}       {power supply device - 2nd channel}\
-{-d -db_dev}   db_dev   {}       {database device (can be empty)}\
-{-n -db_val}   db_val   {}       {database name for numerical values}\
-{-a -db_ann}   db_ann   {}       {database name for annatations}\
-{-v -max_volt} max_volt {1}      {max voltage, V}\
-{-m -max_rate} max_rate {1}      {max rate}\
-{-t -min_t_step} min_t_step {0.5} {min t step}\
+{-p -ps_dev1}  ps_dev1  {}\
+{-P -ps_dev2}  ps_dev2  {}\
+{-d -db_dev}   db_dev   {}\
+{-n -db_val}   db_val   {}\
+{-a -db_ann}   db_ann   {}\
+{-v -max_volt} max_volt {1}\
+{-m -max_rate} max_rate {1}\
+{-t -min_t_step} min_t_step {0.5}\
 ]
 
 #############################################################
@@ -40,7 +49,7 @@ itcl::class SweepController {
   constructor {opts} {
     #Parse options.
     global options
-    parse_options "sweeper" $opts $options
+    xblt::parse_options "sweeper" $opts $options
 
     if {$ps_dev1  == {} } { error "ps_dev1 is empty" }
     set dev1 [DeviceRole $ps_dev1 power_supply]

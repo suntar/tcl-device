@@ -3,13 +3,17 @@
 # general cmdline interface for device library
 
 package require Device 1.5
-package require ParseOptions 2.0
+package require xBlt
+
+#Options:
+# -d -dev  -- specify device
+# -l -lock -- lock the device (prevent other programs from using it)
 
 #############################################################
 ## Command line options:
 set options [list \
-{-d -dev}      dev   {}  {device}\
-{-l -lock}     lock  0   {lock the device}\
+{-d -dev}      dev   {}\
+{-l -lock}     lock  0\
 ]
 
 #############################################################
@@ -22,7 +26,7 @@ itcl::class DeviceController {
   constructor {opts} {
     #Parse options.
     global options
-    parse_options "device" $opts $options
+    xblt::parse_options "device" $opts $options
 
     if {$dev  == {} } { error "Use -dev option to specify the device" }
     Device $dev

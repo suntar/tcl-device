@@ -3,21 +3,29 @@
 # fork pulse controller with stdin/stdout interface
 
 package require Device 1.3
-package require ParseOptions 2.0
+package require xBlt
 
 #############################################################
 ### fork_pulse - making fork pulse measurements
-
+#
 ## Command line options:
 #
+# -o -osc_dev   -- oscilloscope device\
+# -g -gen_dev   -- generator device\
+# -d -db_dev    -- database device (can be empty)\
+# -n -db_val    -- database name for numerical values\
+# -a -db_ann    -- database name for annatations\
+# -D -data_dir  -- data folder (default "./data")\
+
 set options [list \
-{-o -osc_dev}  osc_dev  {}       {oscilloscope device}\
-{-g -gen_dev}  gen_dev  {}       {generator device}\
-{-d -db_dev}   db_dev   {}       {database device (can be empty)}\
-{-n -db_val}   db_val   {}       {database name for numerical values}\
-{-a -db_ann}   db_ann   {}       {database name for annatations}\
-{-D -data_dir} data_dir {./data} {data folder}\
+{-o -osc_dev}  osc_dev  {}\
+{-g -gen_dev}  gen_dev  {}\
+{-d -db_dev}   db_dev   {}\
+{-n -db_val}   db_val   {}\
+{-a -db_ann}   db_ann   {}\
+{-D -data_dir} data_dir {./data}\
 ]
+#############################################################
 
 ## Commands:
 #
@@ -55,7 +63,7 @@ itcl::class ForkPulseDriver {
   constructor {opts} {
     # Parse options.
     global options
-    parse_options "fork_pulse" $opts $options
+    xblt::parse_options "fork_pulse" $opts $options
 
     ##### Open oscilloscope and generator conections and grab locks.
     ##### Check that device models are supported.
