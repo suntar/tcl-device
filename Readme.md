@@ -12,16 +12,16 @@ answers (or errors if any) from them. There is also a library for
 writing programs which can work as "devices".
 
 The library has a configuration file "/etc/devices.txt" which lists
-all avalible devices for example, line "generator gpib -board 0 -address 6"
+all avalible devices. For example, line "generator gpib -board 0 -address 6"
 says that communication with device "generator" is done using driver gpib
 with parameters -board 0 -address 6.
 
 Then one can do something like this:
-`
+```tcl
 package require Device
 Device generator
 puts [generator cmd "*idn?"]
-`
+```
 
 Note that library itself does not know anything about commands used by certain
 devices, it just provides connection.
@@ -103,13 +103,13 @@ Answer of the server is a few lines of text, followed by '#Error:
 It is recommended to implement *idn? command wich returns ID of the
 device. Then clients can check that 
 
-TODO: requests with several lines
-TODO: timeouts, safe closing of the channel...
-TODO: raw data transfer
+* TODO: requests with several lines
+* TODO: timeouts, safe closing of the channel...
+* TODO: raw data transfer
 
-##Conversation example (see spp_server_test.tcl program):
+## Conversation example (see spp_server_test.tcl program):
 
-`
+```
 $ ./spp_server_test.tcl
 #SPP001
 Welcome, dear user!
@@ -133,9 +133,9 @@ read
 read 1
 abc
 #OK
-`
+```
 
-##TCL interface (see `Device/spp_client.tcl` and `Device/spp_server.tcl`)
+## TCL interface (see `Device/spp_client.tcl` and `Device/spp_server.tcl`)
 
 There is a simple tcl library to implement the protocol. To write the
 server create an Itcl class with all needed commands (each gets any
@@ -163,16 +163,14 @@ from command line or through Device library.
 * pico_rec -- recording signals with Pico2440 oscilloscope (https://github.com/slazav/pico_osc)
 * device   -- Transfer commands to a device. Can be used to talk to any device
               from command line or remotely.
-* fork_pulse
-* sweeper
 
 
 ## Remote communication
 
 You can easily add remote devices using spp interface. In the
 configuration file it can be written as
-
+```
 lockin0          ssh <remote address> device -d lockin0
 graphene_remote  ssh <remote address> graphene -i
-
+```
 (ssh access should be configured using keys, ssh-agent etc.)
