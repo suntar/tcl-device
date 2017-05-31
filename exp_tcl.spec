@@ -20,9 +20,6 @@ TCL packages for my experimental computer
 %build
 # build and install tcl packages
 for n in \
-         GrapheneMonitor\
-         GrapheneViewer\
-         ParseOptions-2.0\
          Device\
          DeviceRole\
          ; do
