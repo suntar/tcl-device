@@ -20,6 +20,7 @@ itcl::class Device {
   variable name;   # device name
   variable drv;    # device driver
   variable pars;   # driver parameters
+  variable logfile {}; # log file
 
   # timeouts
   variable lock_timeout    5000; # user locks
@@ -64,6 +65,13 @@ itcl::class Device {
     ::lock_wait $name    $lock_timeout 1
     ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
+    set cmd [join $args " "]
+    # log answer
+    if {$logfile!={}} {
+      set ff [open $logfile "a"]
+      puts $ff "$name << $ret"
+      close $ff
+    }
     set e [catch {set ret [$dev write [join $args " "]]}]
     # unlock device before throwing an error
     ::unlock io_$name
@@ -78,7 +86,22 @@ itcl::class Device {
     ::lock_wait $name    $lock_timeout 1
     ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
-    set e [catch {set ret [$dev cmd [join $args " "]]}]
+
+    set cmd [join $args " "]
+
+    # log command
+    if {$logfile!={}} {
+      set ff [open $logfile "a"]
+      puts $ff "$name << $cmd"
+    }
+    # run the command
+    set e [catch {set ret [$dev cmd $cmd]}]
+
+    # log answer
+    if {$logfile!={}} {
+      if {$ret != {}} {puts $ff "$name >> $ret"}
+      close $ff
+    }
     # unlock device before throwing an error
     ::unlock io_$name
     if {$e} {error $::errorInfo}
@@ -95,6 +118,12 @@ itcl::class Device {
     ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
     set e [catch {set ret [$dev read]}]
+    # log answer
+    if {$logfile!={}} {
+      set ff [open $logfile "a"]
+      puts $ff "$name >> $ret"
+      close $ff
+    }
     # unlock device before throwing an error
     ::unlock io_$name
     if {$e} {error $::errorInfo}
@@ -111,5 +140,7 @@ itcl::class Device {
   method unlock {} {
     ::unlock $name
   }
-
+  method set_logfile {f} {
+    set logfile $f
+  }
 }

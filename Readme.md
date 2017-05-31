@@ -26,10 +26,11 @@ puts [generator cmd "*idn?"]
 Note that library itself does not know anything about commands used by certain
 devices, it just provides connection.
 
-Library also provides IO locking (one device can be used by a few
-programs without collisions) and optional high-level locking (one program
-can lock a device for a long time).
+Library provides IO locking (one device can be used by a few programs
+without collisions) and optional high-level locking (one program can lock
+a device for a long time).
 
+Library provides logging of all commands and answers.
 
 ### Interface (see Device/device.tcl)
 ---
@@ -40,6 +41,7 @@ can lock a device for a long time).
                  command is run. If device is locked, other communications with this
                  device generate an error after some timeout
 * <name> unlock -- Unlock the device.
+* <name> set_logfile <f> -- Set file for logging. Default is "", no logging.
 
 In case of error a tcl error is called. Use catch to process it.
 
