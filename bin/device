@@ -40,9 +40,9 @@ itcl::class DeviceController {
 
   ######################################
 
-  # set current for both channels (internal)
+  # run cmd on the device
   method cmd {args} {
-    set ret [$dev cmd {*}$args]
+    set ret [$dev cmd $args]
     foreach line $ret { spp_server::answer $line }
   }
 }
