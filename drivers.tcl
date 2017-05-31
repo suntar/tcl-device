@@ -35,7 +35,7 @@ itcl::class gpib_prologix {
   method write {v} {
     set dev [Chan #auto [::socket $host 1234] $host]
     set_addr $dev
-    $dev write $v $timeout
+    $dev write "$v\n" $timeout
     itcl::delete object $dev
     return
   }
@@ -51,7 +51,7 @@ itcl::class gpib_prologix {
   method cmd {v} {
     set dev [Chan #auto [::socket $host 1234] $host]
     set_addr $dev
-    $dev write $v $timeout
+    $dev write "$v\n" $timeout
     if [regexp {\?} $v] { set ret [$dev read $timeout] }\
     else { set ret ""}
     itcl::delete object $dev
