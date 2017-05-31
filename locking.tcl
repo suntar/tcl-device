@@ -38,10 +38,14 @@ proc unlock {name} {
 proc lock_wait {name timeout {only_others 0}} {
   if { ! [file exists $::lock_folder] } { return }
   set fname "$::lock_folder/$name"
-  if { ! [file exists $fname] } { return }
-  set f [open $fname r]
-  set p [gets $f]
-  close $f
+
+  # return if we can't read process id from file
+  if [ catch {
+    set f [open $fname r]
+    set p [gets $f]
+    close $f
+  }] {return}
+
   if { ! [file isdirectory "/proc/$p"] } { return }
   if {$only_others && $p == [pid]} { return }
 
