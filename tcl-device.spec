@@ -1,13 +1,13 @@
-%define teaname GrapheneViewer
+%define teaname Device
 %define major 1.0
 
-Name:         tcl_device
+Name:         tcl-device
 Version:      %major
 Release:      alt1
 
 Summary:      Device library
 Group:        System
-URL:          https://github.com/slazav/tcl_device
+URL:          https://github.com/slazav/tcl-device
 License:      GPL
 BuildArch:    noarch
 Packager:     Vladislav Zavjalov <slazav@altlinux.org>
