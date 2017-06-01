@@ -60,6 +60,39 @@ itcl::class gpib_prologix {
 }
 
 ###########################################################
+# usbtcm device
+# parameters: character device
+#
+# timeout is set inside usbtcm driver
+itcl::class usbtcm {
+  variable dev
+
+  # open device
+  constructor {pars} {
+    set dev [::open $pars w+]
+    fconfigure $dev -blocking true -buffering line
+  }
+  # close device
+  destructor {
+    ::close $dev
+  }
+  # write to device without reading answer
+  method write {v} {
+    ::puts $dev $v
+  }
+  # read from device
+  method read {} {
+    return [::gets $dev]
+  }
+  # write and then read
+  method cmd {v} {
+    ::puts $dev $v
+    if [regexp {\?} $v] { return [::gets $dev] }\
+    else {return ""}
+  }
+}
+
+###########################################################
 # LXI device connected via ethernet. SCPI raw connection via port 5025
 # parameters: <host>
 itcl::class lxi_scpi_raw {

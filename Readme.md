@@ -57,6 +57,10 @@ In case of error a tcl error is called. Use catch to process it.
 
   Parameters: <hostname>
 
+* usbtcm -- devices controlled by usbtcm driver
+
+  Parameters: character device (such as /dev/usctcm0).
+
 * gpib -- Connection with linux-gpib library.
 
   Parameters:
