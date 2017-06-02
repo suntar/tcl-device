@@ -10,6 +10,7 @@ package require xBlt
 ## Command line options:
 # -p -ps_dev1    -- power supply device
 # -P -ps_dev2    -- power supply device - 2nd channel
+# -G -gauge      -- gauge device
 # -d -db_dev     -- database device (can be empty)
 # -n -db_val     -- database name for numerical values
 # -a -db_ann     -- database name for annatations
@@ -20,6 +21,7 @@ package require xBlt
 set options [list \
 {-p -ps_dev1}  ps_dev1  {}\
 {-P -ps_dev2}  ps_dev2  {}\
+{-G -gauge}    g_dev    {}\
 {-d -db_dev}   db_dev   {}\
 {-n -db_val}   db_val   {}\
 {-a -db_ann}   db_ann   {}\
@@ -31,8 +33,9 @@ set options [list \
 #############################################################
 
 itcl::class SweepController {
-  variable dev1 {}; # device driver handler
-  variable dev2 {}; # device driver handler -- 2nd chan
+  variable dev1 {}; # device driver
+  variable dev2 {}; # device driver -- 2nd chan
+  variable gdev {}; # gauge device driver
   variable rh;      # ramping loop handler
   variable cs1;     # set current - 1st chan
   variable cs2;     # set current - 2nd chan
@@ -59,6 +62,10 @@ itcl::class SweepController {
       if {$ps_dev1 == $ps_dev2} {error "same devices for both channels"}
       set dev2 [DeviceRole $ps_dev2 power_supply]
       $dev2 lock
+    }
+
+    if {$g_dev != {}} {
+      set gdev [DeviceRole $g_dev gauge]
     }
 
     # Open database if needed
@@ -173,14 +180,16 @@ itcl::class SweepController {
     if {$rate > $max_rate} {set rate $max_rate}
 
 
-    # put current value in the database
+    # make measurements, put current values in the database
     set cm1 [ $dev1 get_curr ]
+    set gval {}
+    if {$gdev != {}} { set gval [ $gdev get_auto ] }
     if {$dev2 != {}} { set cm2 [$dev2 get_curr] } else {set cm2 0}
     set cm [expr {$cm1+$cm2}]
     set cs [expr {$cs1+$cs2}]
 
     if { $db_dev != {} && $db_val != {}} {
-      $db_dev cmd "put $db_val now $cm $cs [get_volt]"
+      $db_dev cmd "put $db_val now $cm $cs [get_volt] $gval"
       $db_dev cmd "sync"
     }
 
