@@ -42,7 +42,7 @@ itcl::class DeviceController {
 
   # run cmd on the device
   method cmd {args} {
-    set ret [$dev cmd $args]
+    set ret [split [$dev cmd $args] "\n"]
     foreach line $ret { spp_server::answer $line }
   }
 }
