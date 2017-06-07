@@ -97,14 +97,15 @@ itcl::class Device {
     # run the command
     set e [catch {set ret [$dev cmd $cmd]}]
 
+    # unlock device before throwing an error
+    ::unlock io_$name
+    if {$e} {error $::errorInfo}
+
     # log answer
     if {$logfile!={}} {
       if {$ret != {}} {puts $ff "$name >> $ret"}
       close $ff
     }
-    # unlock device before throwing an error
-    ::unlock io_$name
-    if {$e} {error $::errorInfo}
     return $ret
   }
   # alias
@@ -118,15 +119,17 @@ itcl::class Device {
     ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
     set e [catch {set ret [$dev read]}]
+
+    # unlock device before throwing an error
+    ::unlock io_$name
+    if {$e} {error $::errorInfo}
+
     # log answer
     if {$logfile!={}} {
       set ff [open $logfile "a"]
       puts $ff "$name >> $ret"
       close $ff
     }
-    # unlock device before throwing an error
-    ::unlock io_$name
-    if {$e} {error $::errorInfo}
     return $ret
   }
 
