@@ -8,12 +8,14 @@ package require xBlt
 #Options:
 # -d -dev  -- specify device
 # -l -lock -- lock the device (prevent other programs from using it)
+# -c -cmd  -- run single command and exit
 
 #############################################################
 ## Command line options:
 set options [list \
 {-d -dev}      dev   {}\
 {-l -lock}     lock  0\
+{-c -cmd}      cmd   {}\
 ]
 
 #############################################################
@@ -23,19 +25,16 @@ itcl::class DeviceController {
   variable dev
   variable lock
 
-  constructor {opts} {
+  constructor {d l} {
+    set dev $d
+    set lock $l
     #Parse options.
-    global options
-    xblt::parse_options "device" $opts $options
-
-    if {$dev  == {} } { error "Use -dev option to specify the device" }
-    Device $dev
     if { $lock } {$dev lock}
   }
 
   destructor {
-    if { $lock } {$dev unlock}
     itcl::delete object $dev
+    if { $lock } {$dev unlock}
   }
 
   ######################################
@@ -47,5 +46,15 @@ itcl::class DeviceController {
   }
 }
 
+xblt::parse_options "device" $argv $options
+if {$dev  == {} } { error "Use -dev option to specify the device" }
+Device $dev
+
+if { $cmd!={} } {
+  puts [$dev cmd $cmd]
+  exit
+}
+
 set spp_server::int_type 1
-spp_server::run DeviceController $argv
+spp_server::run DeviceController $dev $lock
+
