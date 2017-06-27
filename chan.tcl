@@ -40,12 +40,16 @@ itcl::class Chan {
   method read {timeout} {
     set stop 0
     set ret {}
-    set dd [after $timeout [list $this on_timeout]]
+    if {$timeout > 0} {
+      set dd [after $timeout [list $this on_timeout]]
+    }
     fileevent $ch readable [list $this on_read]
     vwait [itcl::scope stop]
     fileevent $ch readable {}
-    after cancel $dd;
-    if {$stop == 2} {error "Read timeout: $name"}
+    if {$timeout > 0} {
+      after cancel $dd;
+      if {$stop == 2} {error "Read timeout: $name"}
+    }
     return $ret
   }
 
