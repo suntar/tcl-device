@@ -125,8 +125,6 @@ itcl::class ForkPulseDriver {
     $osc_dev cmd wait
 
     set out [exec sig_filter -F 30000 -G 34000 -f fit ${data_dir}/sig.dat ]
-#    exec sig_filter -f pnm ${data_dir}/sig.dat | pnmtopng > ${data_dir}/sig.png
-#    exec sig_filter -w 8192 -f sfft_pnm -F 30000 -G 34000 ${data_dir}/sig.dat | pnmtopng > ${data_dir}/sig.fft.png
 
     if {$db_dev != {} && $db_val !={} } {
       $db_dev cmd put $db_val {*}$out
@@ -136,7 +134,7 @@ itcl::class ForkPulseDriver {
   }
 
   method get_osc_sc {} {
-    return {*}[$osc_dev cmd ranges A]
+    return [lindex [$osc_dev cmd ranges A] 0]
   }
 
 

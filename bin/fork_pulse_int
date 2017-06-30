@@ -3,19 +3,51 @@
 ## Interface for pulse fork measurements
 
 package require Device 1.2
+package require BLT
+package require xBlt 3
+package require SigLoad
 
-# fork device
-set fork fork0
+# fork_pulse device
+set dev fork0
 
-# parameters:
-set p_time 5;     # record time
-set p_tpre 0.01;  # pretrigger time
-set p_dt 1e-5;    # record sampling rate
-set p_volt 10;    # pulse voltage
-set p_freq 32768; # pulse frequency
-set p_cnt 10;     # pulse count
-set p_sc 0.05;    # oscilloscope scale
-set p_del 1000;   # delay between measurements
+
+##################################################
+
+# pulse parameters:
+set pars(amp) 10;     # pulse voltage
+set pars(fre) 32768;  # pulse frequency
+set pars(cyc) 10;     # pulse count
+
+# oscilloscope parameters
+set pars(time) 5;     # record time
+set pars(tpre) 0.01;  # pretrigger time
+set pars(dt) 1e-5;    # record sampling rate
+set pars(sc)  0.2;    # oscilloscope range
+
+# auto adjust parameters
+set pars(fadj) 1;     # adjust frequency
+set pars(fmin) 32000; # min value
+set pars(fmax) 33000; # max value
+set pars(tadj) 1;     # adjust time
+set pars(tmin) 0.1;   # min value
+set pars(tmax) 20;    # max value
+set pars(tx)   5;     # time factor
+set pars(radj) 1;     # adjust range
+
+# After setting parameters use on_pars_apply to
+# apply settings!
+
+# measurement parameters
+set del  1.0;   # delay between measurements,s
+set meas 0;     # repeat measurements
+set st   "Opening devices..."; # status line
+set maxlen 4096; # number of points visible on the plot
+set sig_file "./sig.dat"
+
+set need_setup 1; # do we want to update device settings before measurements?
+
+##################################################
+
 
 # measured values
 set time 0;  # system time
@@ -23,42 +55,338 @@ set amp 0;   # amplitude
 set rtau 0;  # 1/relaxation time
 set fre 0;   # frequency
 
+blt::vector create tvec
+blt::vector create avec
+blt::vector create wvec
+blt::vector create fvec
 
-# make interface
-labelframe .f
-label .f.amp    -textvariable amp  -font {-size 20} -text 0 -width 12
-label .f.amp_l  -text "Amplitude, mV"
-label .f.rtau   -textvariable rtau -font {-size 20} -text 0 -width 12
-label .f.rtau_l -text "1/Relaxation time, 1/s"
-label .f.fre    -textvariable fre  -font {-size 20} -text 0 -width 12
-label .f.fre_l  -text "Frequency, Hz"
-grid .f.amp_l .f.amp
-grid .f.rtau_l .f.rtau
-grid .f.fre_l .f.fre
-pack .f
+blt::vector create sig_x
+blt::vector create sig_y0
 
-button .exit -text "Exit"  -command exit
-pack .exit -side right
 
-# Open and set up the device
-Device $fork
-$fork cmd setup $p_freq $p_cnt $p_volt $p_sc
+##################################################
+
+## Create entry/checkbutton/combobox and pack it into a
+## simple grid.
+# w - entry widget name
+# v - entry var name
+# t - entry title
+
+set label_width 20
+
+proc mk_entry {w v t} {
+  if {[regexp {^pars(.*)$} $v]} { global pars}\
+  else {global $v}
+  entry $w -textvariable $v -width 12
+  label ${w}_l -text $t
+  grid ${w}_l ${w} -sticky nw
+}
+## Same for checkbutton
+proc mk_check {w v t} {
+  if {[regexp {^pars(.*)$} $v]} { global pars}\
+  else {global $v}
+  checkbutton $w -text $t -variable $v
+  grid $w -sticky nw -columnspan 2
+}
+## Same for combobox
+proc mk_combo {w v t} {
+  if {[regexp {^pars(.*)$} $v]} { global pars}\
+  else {global $v}
+  ttk::combobox $w -width 9 -textvariable $v
+  label ${w}_l -text $t
+  grid ${w}_l ${w} -sticky nw
+}
+## empty space with fixed width
+proc mk_empty {w} {
+  global label_width
+  label ${w}_l
+  set ww [font measure [${w}_l cget -font] n]
+  canvas $w -height 1 -width [expr $ww*$label_width]
+  grid $w -sticky nw
+}
+
+
+##################################################
+## parameters frame
+
+proc on_pars_reset {} {
+  global pars apars
+  array set pars [array get apars]
+}
+proc on_pars_apply {} {
+  global pars apars need_setup
+  array set apars [array get pars]
+  set need_setup 1
+}
+
+proc mk_pars_frame {root} {
+
+  set w $root.pp
+  labelframe $w -text {generator parameters}\
+                -font {-weight bold} -padx 5 -pady 5
+  foreach {v title} {
+        fre "Frequency, Hz"
+        amp "Amplitude, V"
+        cyc "Cycles"
+        } {
+    mk_entry $w.${v} pars($v) $title
+  }
+  mk_empty $w.e
+  grid $w -sticky ew -padx 5 -row 1 -column 1 -sticky ns
+
+
+  set w $root.op
+  labelframe $w -text {oscilloscope parameters}\
+                -font {-weight bold} -padx 5 -pady 5
+  foreach {v title} {
+        tpre "Pretrigger time, s"
+        time "Record time, s"
+        dt   "Sampling rate, s"
+        } {
+    mk_entry $w.${v} pars($v) $title
+  }
+  mk_empty $w.e
+  mk_combo $w.sc pars(sc) "Range, V"
+  grid $w -sticky ew -padx 5 -row 2 -column 1 -sticky ns
+
+
+  set w $root.ap
+  labelframe $w -text {auto adjustments}\
+                -font {-weight bold} -padx 5 -pady 5
+
+  mk_check $w.fadj pars(fadj) "Adjust frequency"
+  foreach {v title} {
+        fmin "min value, Hz"
+        fmax "max value, Hz"
+        } {
+    mk_entry $w.${v} pars($v) $title
+  }
+  mk_check $w.tadj pars(tadj) "Adjust record time"
+  foreach {v title} {
+        tmin "min value, s"
+        tmax "max value, s"
+        tx   "factor"
+        } {
+    mk_entry $w.${v} pars($v) $title
+  }
+#  mk_check $w.radj pars(tadj) "Adjust oscilloscope range"
+  mk_empty $w.e
+  grid $w -sticky ew -padx 5  -row 1 -column 2 -rowspan 2 -sticky ns
+
+  frame $root.btn
+  button $root.btn.reset -text "Reset"  -command on_pars_reset
+  button $root.btn.apply -text "Apply"  -command on_pars_apply
+  grid $root.btn.reset $root.btn.apply  -padx 20 -pady 5
+  grid $root.btn -row 3 -column 2 -sticky n
+
+}
+
+
+##################################################
+## measurement frame
 
 proc do_pulse {} {
-  global fork
-  global p_time p_tpre p_dt p_volt p_freq p_cnt p_del
+  global dev del meas st
+  global pars apars
   global time amp rtau fre
+  global need_setup
 
-  set ret [lindex [$fork cmd pulse $p_tpre $p_time $p_dt] 0]
-puts $ret
+  if {$need_setup} {
+    set st "Setting parameters..."
+    $dev cmd setup $apars(fre) $apars(cyc) $apars(amp) $apars(sc)
+    set need_setup 0
+  }
+
+
+  set t0 [clock milliseconds]
+  set st "Measuring..."
+  set ret [lindex [$dev cmd pulse $apars(tpre) $apars(time) $apars(dt)] 0]
+
+  ## pars results
   set time [lindex $ret 0]
   set fre  [format %.6f [lindex $ret 1]]
   set rtau [format %.6f [lindex $ret 2]]
   set amp  [format %.6f [expr {1000*[lindex $ret 3]}]]
-  after $p_del do_pulse
+
+  global maxlen
+  tvec append $time
+  fvec append $fre
+  wvec append $rtau
+  avec append $amp
+  # remove old values:
+  if {[tvec length] > [expr $maxlen+100]} {
+    tvec delete 0:99
+    fvec delete 0:99
+    wvec delete 0:99
+    avec delete 0:99
+  }
+
+  # make graph
+  global sig_file
+  set ncols [sig_load sig $sig_file]
+
+
+  ## auto adjustments
+  if {$apars(fadj)} {
+    set apars(fre) [format %.3f $fre]
+    if {$apars(fre) < $apars(fmin)} {set apars(fre) $apars(fmin)}
+    if {$apars(fre) > $apars(fmax)} {set apars(fre) $apars(fmax)}
+    set pars(fre) $apars(fre)
+  }
+  if {$apars(tadj)} {
+    set apars(time) [format %.3f [expr {$apars(tx)/$rtau}]]
+    if {$apars(time) < $apars(tmin)} {set apars(time) $apars(tmin)}
+    if {$apars(time) > $apars(tmax)} {set apars(time) $apars(tmax)}
+    set pars(time) $apars(time)
+  }
+#  if {$apars(radj)} {
+#    # TODO
+#  }
+
+  ## set up the next measurement if needed
+  set t1 [clock milliseconds]
+  set dt [expr int(1000*$del-$t1+$t0)]
+  if {$dt<0} {set dt 0}
+  if {$meas} {
+    set st "Waiting for the next measurement..."
+    after [expr $dt] do_pulse
+  } else {
+    set st "Ready"
+  }
 }
 
-after idle do_pulse
-set status idle
+proc mk_meas_frame {root} {
+  label $root.amp    -textvariable amp  -font {-size 15} -text 0 -width 12
+  label $root.amp_l  -text "Amplitude, mV"
+  label $root.rtau   -textvariable rtau -font {-size 15} -text 0 -width 12
+  label $root.rtau_l -text "1/Relaxation time, 1/s"
+  label $root.fre    -textvariable fre  -font {-size 15} -text 0 -width 12
+  label $root.fre_l  -text "Frequency, Hz"
+  grid $root.amp_l  $root.amp  -sticky w
+  grid $root.rtau_l $root.rtau -sticky w
+  grid $root.fre_l  $root.fre  -sticky w
+
+
+  # make graph
+  set pwid $root.p
+  set swid $root.sb
+
+  blt::graph $pwid -leftmargin 60
+  grid $pwid -sticky wens -columnspan 2
+
+  scrollbar $swid -orient horizontal
+  grid $swid -sticky we -columnspan 2
+
+  $pwid legend configure -activebackground white
+
+  # configure standard xBLT things:
+  xblt::plotmenu $pwid -showbutton 1 -buttonlabel Menu -menuoncanvas 0
+  xblt::legmenu  $pwid -showseparator 0
+
+  xblt::hielems $pwid
+  xblt::crosshairs $pwid -show 1
+  xblt::measure $pwid
+  xblt::readout $pwid -variable v_readout -active 1
+  xblt::zoomstack $pwid -axes x -recttype x
+  xblt::elemop $pwid
+  xblt::scroll $pwid $swid;
+  $pwid element create sig -xdata sig_x -ydata sig_y0 -symbol "" -color blue
+
+  frame $root.m
+  checkbutton $root.m.meas -text "Repeat measurements with period" -variable meas
+  entry       $root.m.del -textvariable del -width 7
+  label       $root.m.dll  -text " seconds"
+  grid $root.m -columnspan 2 -sticky nw
+
+
+  grid $root.m.meas $root.m.del $root.m.dll -sticky ew
+  grid $root.m -columnspan 2 -sticky ew
+
+  button $root.run -text "Run" -command do_pulse -state disabled
+  grid $root.run -sticky e -pady 10 -padx 10 -columnspan 2
+}
+
+##################################################
+## time plot frame
+
+proc mk_tplot_frame {root} {
+  set graph $root.p
+  set swid $root.sb
+
+  blt::graph $graph -leftmargin 100
+  pack $graph -side top -expand yes -fill both
+  $graph legend configure -activebackground white
+
+  scrollbar $swid -orient horizontal
+  pack $swid -side bottom -fill x
+
+  # configure standard xBLT things:
+  xblt::plotmenu   $graph -showbutton 1 -buttonlabel Menu -menuoncanvas 0
+  xblt::legmenu    $graph
+  xblt::hielems    $graph
+  xblt::crosshairs $graph -variable v_crosshairs
+  xblt::measure    $graph
+  xblt::readout    $graph -variable v_readout -active 1;
+  xblt::zoomstack  $graph -scrollbutton 2 -axes x -recttype x
+  xblt::elemop     $graph
+  xblt::scroll     $graph $swid -timefmt 0
+
+  $graph axis create fre  -title Frequency -titlecolor black
+  $graph axis create amp  -title Amplitude -titlecolor black
+  $graph axis create rtau -title Width     -titlecolor black
+
+  $graph element create fre -xdata tvec -ydata fvec -mapy fre\
+    -symbol circle -pixels 1.5 -linewidth 1 -color blue
+  $graph element create rtau -xdata tvec -ydata wvec -mapy rtau\
+    -symbol circle -pixels 1.5 -linewidth 1 -color green
+  $graph element create amp  -xdata tvec -ydata avec -mapy amp\
+    -symbol circle -pixels 1.5 -linewidth 1 -color red
+
+  $graph element bind fre  <Enter> [list $graph yaxis use fre]
+  $graph element bind rtau <Enter> [list $graph yaxis use rtau]
+  $graph element bind amp  <Enter> [list $graph yaxis use amp]
+
+}
+
+##################################################
+# rest of the interface
+
+blt::tabset .tabs -side left
+frame .tabs.meas
+frame .tabs.tplot
+frame .tabs.pars
+
+.tabs insert end meas -window .tabs.meas\
+   -anchor n -text "Measure" -fill both
+.tabs insert end tplot -window .tabs.tplot\
+   -anchor n -text "Time plot" -fill both
+.tabs insert end pars -window .tabs.pars\
+   -anchor n -text "Parameters" -fill both
+
+mk_pars_frame {.tabs.pars}
+mk_meas_frame {.tabs.meas}
+mk_tplot_frame {.tabs.tplot}
+pack .tabs -fill both -expand 1
+
+
+## status line on the bottom
+frame .sline
+label .sline.st -textvariable st
+button .sline.exit -text "Exit" -command exit
+grid .sline.exit .sline.st -sticky w -padx 10
+pack .sline -fill x -expand 0
+
+##################################################
+
+
+# Open and set up the device
+Device $dev
+
+# fill scilloscope range chackbox with values
+.tabs.pars.op.sc configure -values [lindex [$dev cmd get_osc_sc] 0]
+
+# set some parameters
+on_pars_apply
+.tabs.meas.run configure -state normal
 
 
