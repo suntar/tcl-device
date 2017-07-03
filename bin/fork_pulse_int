@@ -44,7 +44,8 @@ set st   "Opening devices..."; # status line
 set maxlen 4096; # number of points visible on the plot
 set sigfile "/tmp/${dev}_sig.dat"
 
-set need_setup 1; # do we want to update device settings before measurements?
+set range_values {}; # possible values for oscilloscope range (will be autodetected later)
+set need_setup 1;    # do we want to update device settings before measurements?
 
 ##################################################
 
@@ -169,7 +170,7 @@ proc mk_pars_frame {root} {
         } {
     mk_entry $w.${v} pars($v) $title
   }
-#  mk_check $w.radj pars(tadj) "Adjust oscilloscope range"
+  mk_check $w.radj pars(radj) "Adjust oscilloscope range"
   mk_empty $w.e
   grid $w -sticky ew -padx 5  -row 1 -column 2 -rowspan 2 -sticky ns
 
@@ -231,16 +232,26 @@ proc do_pulse {} {
     if {$apars(fre) < $apars(fmin)} {set apars(fre) $apars(fmin)}
     if {$apars(fre) > $apars(fmax)} {set apars(fre) $apars(fmax)}
     set pars(fre) $apars(fre)
+    set need_setup 1
   }
   if {$apars(tadj)} {
     set apars(time) [format %.3f [expr {$apars(tx)/$rtau}]]
     if {$apars(time) < $apars(tmin)} {set apars(time) $apars(tmin)}
     if {$apars(time) > $apars(tmax)} {set apars(time) $apars(tmax)}
     set pars(time) $apars(time)
+    set need_setup 1
   }
-#  if {$apars(radj)} {
-#    # TODO
-#  }
+  if {$apars(radj)} {
+    global range_values
+    foreach r $range_values {
+      if {1e-3*$amp < 2*0.8*$r} {
+        set apars(sc) $r
+        set  pars(sc) $r
+        set need_setup 1
+        break
+      }
+    }
+  }
 
   ## set up the next measurement if needed
   set t1 [clock milliseconds]
@@ -256,7 +267,7 @@ proc do_pulse {} {
 
 proc mk_meas_frame {root} {
   label $root.amp    -textvariable amp  -font {-size 15} -text 0 -width 12
-  label $root.amp_l  -text "Amplitude, mV"
+  label $root.amp_l  -text "P-P Amplitude, mV"
   label $root.rtau   -textvariable rtau -font {-size 15} -text 0 -width 12
   label $root.rtau_l -text "1/Relaxation time, 1/s"
   label $root.fre    -textvariable fre  -font {-size 15} -text 0 -width 12
@@ -382,8 +393,9 @@ pack .sline -fill x -expand 0
 Device $dev
 set st "Ready"
 
-# fill scilloscope range chackbox with values
-.tabs.pars.op.sc configure -values [lindex [$dev cmd get_osc_sc] 0]
+# fill scilloscope range combobox with values
+set range_values [lindex [$dev cmd get_osc_sc] 0]
+.tabs.pars.op.sc configure -values $range_values
 
 # set some parameters
 on_pars_apply
