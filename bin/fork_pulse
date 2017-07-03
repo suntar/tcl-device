@@ -15,7 +15,6 @@ package require xBlt
 # -d -db_dev    -- database device (can be empty)\
 # -n -db_val    -- database name for numerical values\
 # -a -db_ann    -- database name for annatations\
-# -D -data_dir  -- data folder (default "./data")\
 
 set options [list \
 {-o -osc_dev}  osc_dev  {}\
@@ -23,7 +22,6 @@ set options [list \
 {-d -db_dev}   db_dev   {}\
 {-n -db_val}   db_val   {}\
 {-a -db_ann}   db_ann   {}\
-{-D -data_dir} data_dir {./data}\
 ]
 #############################################################
 
@@ -56,7 +54,6 @@ itcl::class ForkPulseDriver {
   variable db_dev
   variable db_val
   variable db_ann
-  variable data_dir
 
   variable setup_done 0
 
@@ -116,15 +113,15 @@ itcl::class ForkPulseDriver {
     return
   }
 
-  method pulse {tpre time dt} {
+  method pulse {tpre time dt sigfile} {
     if {!$setup_done} {error "setup command should be used before a pulse"}
     set N  [expr {int(1.0*$time/$dt)}]; # sample count
     set NP [expr {int(1.0*$tpre/$dt)}]; # pretigger sample count
-    $osc_dev cmd block A $NP $N $dt ${data_dir}/sig.dat
+    $osc_dev cmd block A $NP $N $dt $sigfile
     $gen_dev write *TRG
     $osc_dev cmd wait
 
-    set out [exec sig_filter -F 30000 -G 34000 -f fit ${data_dir}/sig.dat ]
+    set out [exec sig_filter -F 30000 -G 34000 -f fit $sigfile ]
 
     if {$db_dev != {} && $db_val !={} } {
       $db_dev cmd put $db_val {*}$out
@@ -139,7 +136,7 @@ itcl::class ForkPulseDriver {
 
 
   # Return list of commands which can be run from stdin.
-  method list {} {return {list pulse setup get_osc_sc} }
+  method list {} {return {list pulse setup get_osc_sc get_sigfile} }
 }
 
 #############################################################

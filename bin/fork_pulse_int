@@ -42,7 +42,7 @@ set del  1.0;   # delay between measurements,s
 set meas 0;     # repeat measurements
 set st   "Opening devices..."; # status line
 set maxlen 4096; # number of points visible on the plot
-set sig_file "./sig.dat"
+set sigfile "/tmp/${dev}_sig.dat"
 
 set need_setup 1; # do we want to update device settings before measurements?
 
@@ -190,6 +190,7 @@ proc do_pulse {} {
   global pars apars
   global time amp rtau fre
   global need_setup
+  global sigfile
 
   if {$need_setup} {
     set st "Setting parameters..."
@@ -200,7 +201,7 @@ proc do_pulse {} {
 
   set t0 [clock milliseconds]
   set st "Measuring..."
-  set ret [lindex [$dev cmd pulse $apars(tpre) $apars(time) $apars(dt)] 0]
+  set ret [lindex [$dev cmd pulse $apars(tpre) $apars(time) $apars(dt) $sigfile] 0]
 
   ## pars results
   set time [lindex $ret 0]
@@ -222,9 +223,7 @@ proc do_pulse {} {
   }
 
   # make graph
-  global sig_file
-  set ncols [sig_load sig $sig_file]
-
+  set ncols [sig_load sig $sigfile]
 
   ## auto adjustments
   if {$apars(fadj)} {
@@ -381,6 +380,7 @@ pack .sline -fill x -expand 0
 
 # Open and set up the device
 Device $dev
+set st "Ready"
 
 # fill scilloscope range chackbox with values
 .tabs.pars.op.sc configure -values [lindex [$dev cmd get_osc_sc] 0]
