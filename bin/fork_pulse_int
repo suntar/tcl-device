@@ -42,7 +42,8 @@ set del  1.0;   # delay between measurements,s
 set meas 0;     # repeat measurements
 set st   "Opening devices..."; # status line
 set maxlen 1024; # number of points visible on the plot
-set sigfile "/tmp/${dev}_sig.dat"
+set sigfile   "/tmp/${dev}_sig.dat"
+set noisefile "/tmp/${dev}_noise.dat"
 
 set range_values {}; # possible values for oscilloscope range (will be autodetected later)
 set need_setup 1;    # do we want to update device settings before measurements?
@@ -68,6 +69,10 @@ blt::vector create sig_xm
 blt::vector create sig_ym1
 blt::vector create sig_ym2
 
+set noise_avrgs 0
+blt::vector create noise_x
+blt::vector create noise_y
+blt::vector create noise_ya
 
 ##################################################
 
@@ -200,12 +205,13 @@ proc do_pulse {} {
   if {$need_setup} {
     set st "Setting parameters..."
     $dev cmd setup $apars(fre) $apars(cyc) $apars(amp) $apars(sc)
+    $dev cmd set_freq_limits $apars(fmin) $apars(fmax)
     set need_setup 0
   }
 
 
   set t0 [clock milliseconds]
-  set st "Measuring..."
+  set_busy
   set ret [lindex [$dev cmd pulse $apars(tpre) $apars(time) $apars(dt) $sigfile] 0]
 
   ## pars results
@@ -272,7 +278,7 @@ proc do_pulse {} {
     set st "Waiting for the next measurement..."
     after [expr $dt] do_pulse
   } else {
-    set st "Ready"
+    set_ready
   }
 }
 
@@ -309,7 +315,6 @@ proc mk_meas_frame {root} {
   xblt::measure $pwid
   xblt::readout $pwid -variable v_readout -active 1
   xblt::zoomstack $pwid -axes x -recttype x
-  xblt::elemop $pwid
   xblt::scroll $pwid $swid -timefmt 0
   $pwid element create res+ -xdata sig_xm -ydata sig_ym1 -symbol "" -color red -label ""
   $pwid element create res- -xdata sig_xm -ydata sig_ym2 -symbol "" -color red -label ""
@@ -372,12 +377,102 @@ proc mk_tplot_frame {root} {
 }
 
 ##################################################
+## noise frame
+
+proc do_noise_clear {} {
+  global noise_avrgs
+  set noise_avrgs 0
+  noise_y  set {}
+  noise_ya set {}
+}
+
+proc do_noise {} {
+  global dev st apars
+  global need_setup
+  global noisefile
+
+  if {$need_setup} {
+    set st "Setting parameters..."
+    $dev cmd setup $apars(fre) $apars(cyc) $apars(amp) $apars(sc)
+    $dev cmd set_freq_limits $apars(fmin) $apars(fmax)
+    set need_setup 0
+    do_noise_clear
+  }
+
+  set_busy
+  set ret [$dev cmd noise $noisefile]
+
+  noise_x set {}
+  noise_y set {}
+  foreach l $ret {
+    noise_x append [lindex $l 0]
+    noise_y append [expr {1e9*sqrt([lindex $l 1])}]
+  }
+  global noise_avrgs
+  if {[noise_ya length] < [noise_y length]} {noise_ya expr noise_y*0}
+  noise_ya expr {(noise_ya*$noise_avrgs + noise_y)/($noise_avrgs+1)}
+  incr noise_avrgs
+  set_ready
+  set need_setup 1
+}
+
+proc mk_noise_frame {root} {
+
+  # make graph
+  set pwid $root.p
+  set swid $root.sb
+
+  blt::graph $pwid -leftmargin 60
+  grid $pwid -sticky wens -columnspan 2
+
+  scrollbar $swid -orient horizontal
+  grid $swid -sticky we -columnspan 2
+
+  $pwid legend configure -activebackground white
+
+  # configure standard xBLT things:
+  xblt::plotmenu $pwid -showbutton 1 -buttonlabel Menu -menuoncanvas 0
+  xblt::legmenu  $pwid -showseparator 0
+
+  xblt::hielems $pwid
+  xblt::crosshairs $pwid -show 1
+  xblt::measure $pwid
+  xblt::readout $pwid -variable v_readout -active 1
+  xblt::zoomstack $pwid -axes x -recttype x
+  xblt::scroll $pwid $swid -timefmt 0
+  $pwid element create average -xdata noise_x -ydata noise_ya -symbol "" -color red
+  $pwid element create noise -xdata noise_x -ydata noise_y -symbol "" -color blue
+  $pwid axis configure y -title {Noise, nV/sqrt(Hz)}
+
+  button $root.run   -text "Run"   -command do_noise -state disabled
+  button $root.clear -text "Clear" -command do_noise_clear
+  grid $root.clear $root.run -sticky e -pady 10 -padx 10
+}
+
+##################################################
+# block/unblock buttons
+proc set_busy {} {
+  .tabs.meas.run configure -state disabled
+  .tabs.noise.run configure -state disabled
+  global st
+  set st "Measuring"
+}
+proc set_ready {} {
+  .tabs.meas.run configure -state normal
+  .tabs.noise.run configure -state normal
+  global st
+  set st "Ready"
+}
+
+
+##################################################
 # rest of the interface
 
 blt::tabset .tabs -side left
 frame .tabs.meas
 frame .tabs.tplot
 frame .tabs.pars
+frame .tabs.noise
 
 .tabs insert end meas -window .tabs.meas\
    -anchor n -text "Measure" -fill both
@@ -385,10 +480,13 @@ frame .tabs.pars
    -anchor n -text "Time plot" -fill both
 .tabs insert end pars -window .tabs.pars\
    -anchor n -text "Parameters" -fill both
+.tabs insert end noise -window .tabs.noise\
+   -anchor n -text "Noise" -fill both
 
 mk_pars_frame {.tabs.pars}
 mk_meas_frame {.tabs.meas}
 mk_tplot_frame {.tabs.tplot}
+mk_noise_frame {.tabs.noise}
 pack .tabs -fill both -expand 1
 
 
@@ -404,14 +502,13 @@ pack .sline -fill x -expand 0
 
 # Open and set up the device
 Device $dev
-set st "Ready"
 
 # fill scilloscope range combobox with values
 set range_values [lindex [$dev cmd get_osc_sc] 0]
 .tabs.pars.op.sc configure -values $range_values
 
-# set some parameters
+# set some parameters, unlock run buttons
 on_pars_apply
-.tabs.meas.run configure -state normal
+set_ready
 
 

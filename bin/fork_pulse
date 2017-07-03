@@ -57,6 +57,9 @@ itcl::class ForkPulseDriver {
 
   variable setup_done 0
 
+  variable fmin 30000
+  variable fmax 35000
+
   constructor {opts} {
     # Parse options.
     global options
@@ -113,6 +116,11 @@ itcl::class ForkPulseDriver {
     return
   }
 
+  method set_freq_limits {min max} {
+    set fmin $min
+    set fmax $max
+  }
+
   method pulse {tpre time dt sigfile} {
     if {!$setup_done} {error "setup command should be used before a pulse"}
     set N  [expr {int(1.0*$time/$dt)}]; # sample count
@@ -121,7 +129,7 @@ itcl::class ForkPulseDriver {
     $gen_dev write *TRG
     $osc_dev cmd wait
 
-    set out [exec sig_filter -F 30000 -G 34000 -T 0 -f fit $sigfile ]
+    set out [exec sig_filter -F $fmin -G $fmax -T 0 -f fit $sigfile ]
 
     if {$db_dev != {} && $db_val !={} } {
       $db_dev cmd put $db_val {*}$out
@@ -130,13 +138,28 @@ itcl::class ForkPulseDriver {
     return $out
   }
 
+  # write a noise signal
+  method noise {noisefile} {
+    set time 10
+    set dt   1e-6
+    set N  [expr {int(1.0*$time/$dt)}]; # sample count
+
+    $osc_dev cmd chan_set A 1 AC 0.05
+    $osc_dev cmd trig_set NONE 0 FALLING 0
+    $osc_dev cmd block A 0 $N $dt $noisefile
+    $osc_dev cmd wait
+    $osc_dev cmd trig_set B 0.1 FALLING 0
+
+    return [exec sig_filter -f fft_pow_avr -F $fmin -G $fmax -N 1000 $noisefile ]
+  }
+
   method get_osc_sc {} {
     return [lindex [$osc_dev cmd ranges A] 0]
   }
 
 
   # Return list of commands which can be run from stdin.
-  method list {} {return {list pulse setup get_osc_sc get_sigfile} }
+  method list {} {return {list pulse setup get_osc_sc get_sigfile set_freq_limits noise} }
 }
 
 #############################################################
