@@ -41,7 +41,7 @@ set pars(radj) 1;     # adjust range
 set del  1.0;   # delay between measurements,s
 set meas 0;     # repeat measurements
 set st   "Opening devices..."; # status line
-set maxlen 4096; # number of points visible on the plot
+set maxlen 1024; # number of points visible on the plot
 set sigfile "/tmp/${dev}_sig.dat"
 
 set range_values {}; # possible values for oscilloscope range (will be autodetected later)
@@ -63,6 +63,10 @@ blt::vector create fvec
 
 blt::vector create sig_x
 blt::vector create sig_y0
+
+blt::vector create sig_xm
+blt::vector create sig_ym1
+blt::vector create sig_ym2
 
 
 ##################################################
@@ -226,6 +230,13 @@ proc do_pulse {} {
   # make graph
   set ncols [sig_load sig $sigfile]
 
+  global sig_x
+  set min $sig_x(min)
+  set max $sig_x(max)
+  sig_xm seq $min $max [expr {($max-$min)/500}]
+  sig_ym1 expr {0.5*1e-3*$amp*exp(-sig_xm*$rtau)}
+  sig_ym2 expr -sig_ym1
+
   ## auto adjustments
   if {$apars(fadj)} {
     set apars(fre) [format %.3f $fre]
@@ -299,7 +310,9 @@ proc mk_meas_frame {root} {
   xblt::readout $pwid -variable v_readout -active 1
   xblt::zoomstack $pwid -axes x -recttype x
   xblt::elemop $pwid
-  xblt::scroll $pwid $swid;
+  xblt::scroll $pwid $swid -timefmt 0
+  $pwid element create res+ -xdata sig_xm -ydata sig_ym1 -symbol "" -color red -label ""
+  $pwid element create res- -xdata sig_xm -ydata sig_ym2 -symbol "" -color red -label ""
   $pwid element create sig -xdata sig_x -ydata sig_y0 -symbol "" -color blue
 
   frame $root.m
@@ -339,7 +352,7 @@ proc mk_tplot_frame {root} {
   xblt::readout    $graph -variable v_readout -active 1;
   xblt::zoomstack  $graph -scrollbutton 2 -axes x -recttype x
   xblt::elemop     $graph
-  xblt::scroll     $graph $swid -timefmt 0
+  xblt::scroll     $graph $swid -timefmt 1
 
   $graph axis create fre  -title Frequency -titlecolor black
   $graph axis create amp  -title Amplitude -titlecolor black
