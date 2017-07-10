@@ -245,7 +245,7 @@ proc set_state {s} {
 
   if {$s == "wait"} {
     set meas 0
-    $run_btn configure -state disabled -text "Wait..." -command ""
+    $run_btn configure -state disabled -text "Run" -command ""
     set st "Waiting for devices..."
     return
   }
