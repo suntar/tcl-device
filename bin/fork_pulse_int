@@ -43,7 +43,6 @@ set meas 0;     # repeat measurements
 set st   "Opening devices..."; # status line
 set maxlen 1024; # number of points visible on the plot
 set sigfile   "/tmp/${dev}_sig.dat"
-set noisefile "/tmp/${dev}_noise.dat"
 
 set range_values {}; # possible values for oscilloscope range (will be autodetected later)
 set need_setup 1;    # do we want to update device settings before measurements?
@@ -69,10 +68,10 @@ blt::vector create sig_xm
 blt::vector create sig_ym1
 blt::vector create sig_ym2
 
-set noise_avrgs 0
-blt::vector create noise_x
-blt::vector create noise_y
-blt::vector create noise_ya
+blt::vector create fft_x
+blt::vector create fft_y
+blt::vector create fft_xa
+blt::vector create fft_ya
 
 ##################################################
 
@@ -116,6 +115,287 @@ proc mk_empty {w} {
 }
 
 
+
+
+##################################################
+## measurement frame
+
+proc do_pulse {} {
+  global dev del meas st
+  global pars apars
+  global time amp rtau fre
+  global need_setup
+  global sigfile
+
+  if {$need_setup} {
+    set st "Setting parameters..."
+    $dev cmd setup $apars(fre) $apars(cyc) $apars(amp) $apars(sc)
+    $dev cmd set_freq_limits $apars(fmin) $apars(fmax)
+    set need_setup 0
+  }
+  set st "Measuring..."
+
+  set t0 [clock milliseconds]
+  set ret [lindex [$dev cmd pulse $apars(tpre) $apars(time) $apars(dt) $sigfile] 0]
+
+  ## pars results
+  set time [lindex $ret 0]
+  set fre  [format %.6f [lindex $ret 1]]
+  set rtau [format %.6f [lindex $ret 2]]
+  set amp  [format %.6f [expr {1000*[lindex $ret 3]}]]
+
+  global maxlen
+  tvec append $time
+  fvec append $fre
+  wvec append $rtau
+  avec append $amp
+  # remove old values:
+  if {[tvec length] > [expr $maxlen+100]} {
+    tvec delete 0:99
+    fvec delete 0:99
+    wvec delete 0:99
+    avec delete 0:99
+  }
+
+  ## load signal
+  set ncols [sig_load sig $sigfile]
+
+  global sig_x
+  set min $sig_x(min)
+  set max $sig_x(max)
+  sig_xm seq $min $max [expr {($max-$min)/500}]
+  sig_ym1 expr {0.5*1e-3*$amp*exp(-sig_xm*$rtau)}
+  sig_ym2 expr -sig_ym1
+
+
+  ## load FFT
+#  set ret [exec sig_filter -f fft_pow_lavr -F $apars(fmin) -G $apars(fmax) -N 250 $sigfile]
+  set ret [exec sig_filter -f fft_pow_lavr -N 10000 $sigfile]
+  fft_x set {}
+  fft_y set {}
+  foreach l [split $ret "\n"] {
+    fft_x append [lindex $l 0]
+    fft_y append [lindex $l 1]
+  }
+  fft_y expr {sqrt(fft_y)*1e9}
+
+
+  global fft_y
+  fft_xa set [list $apars(fmin) $apars(fmax)]
+  set s 0
+  set n 0
+  set ind [fft_x search $apars(fmin) $apars(fmax)]
+  foreach i $ind {
+    set s [expr {$s+$fft_y($i)}]
+    incr n
+  }
+  set mean [expr $s/$n]
+  fft_ya set [list $mean $mean]
+
+
+
+  ## auto adjustments
+  if {$apars(fadj)} {
+    set apars(fre) [format %.3f $fre]
+    if {$apars(fre) < $apars(fmin)} {set apars(fre) $apars(fmin)}
+    if {$apars(fre) > $apars(fmax)} {set apars(fre) $apars(fmax)}
+    set pars(fre) $apars(fre)
+    set need_setup 1
+  }
+  if {$apars(tadj)} {
+    set apars(time) [format %.3f [expr {$apars(tx)/$rtau}]]
+    if {$apars(time) < $apars(tmin)} {set apars(time) $apars(tmin)}
+    if {$apars(time) > $apars(tmax)} {set apars(time) $apars(tmax)}
+    set pars(time) $apars(time)
+    set need_setup 1
+  }
+  if {$apars(radj)} {
+    global range_values
+    foreach r $range_values {
+      if {1e-3*$amp < 2*0.8*$r} {
+        set apars(sc) $r
+        set  pars(sc) $r
+        set need_setup 1
+        break
+      }
+    }
+  }
+
+  ## set up the next measurement if needed
+  set t1 [clock milliseconds]
+  set dt [expr int(1000*$del-$t1+$t0)]
+  if {$dt<0} {set dt 0}
+
+  if {! $meas} {
+    set_state ready
+    return
+  }
+
+  set st "Waiting for the next measurement..."
+  after [expr $dt] do_pulse
+}
+
+
+proc set_state {s} {
+  global st meas
+  set run_btn .meas.m.run
+  set stop_btn .stop
+
+  if {$s == "wait"} {
+    set meas 0
+    $run_btn configure -state disabled -text "Wait..." -command ""
+    set st "Waiting for devices..."
+    return
+  }
+  if {$s == "ready"} {
+    set meas 0
+    $run_btn configure -state normal -text "Run" -command "set_state busy; do_pulse"
+    set st "Ready"
+    return
+  }
+  if {$s == "busy"} {
+    set meas 1
+    $run_btn configure -state normal -text "Stop" -command {set_state wait}
+    set st "Measuring..."
+    return
+  }
+  error "unknown state"
+}
+
+
+proc mk_meas_frame {root} {
+  frame $root
+
+  frame $root.res
+
+  labelframe $root.res.amp -text "Amplitude, mV: "
+  label $root.res.amp.val -textvariable amp  -font {-size 15} -text 0 -width 12
+  pack $root.res.amp.val
+
+  labelframe $root.res.rtau -text "1/Tau, 1/s: "
+  label $root.res.rtau.val -textvariable rtau  -font {-size 15} -text 0 -width 12
+  pack $root.res.rtau.val
+
+  labelframe $root.res.fre -text "Frequency, Hz: "
+  label $root.res.fre.val -textvariable fre -font {-size 15} -text 0 -width 12
+  pack $root.res.fre.val
+  pack $root.res.amp $root.res.rtau $root.res.fre\
+    -side left -fill x -expand 1
+
+  frame $root.m
+  label       $root.m.dll -text "Measurement period, s:"
+  entry       $root.m.del -textvariable del -width 7
+  button      $root.m.run
+  pack  $root.m.run $root.m.del $root.m.dll -side right
+
+  pack $root.res $root.m -fill x -expand 1
+  set_state wait
+}
+
+##################################################
+## signal plot frame
+
+proc mk_splot_frame {root} {
+  frame $root
+
+  # make graph
+  set pwid $root.p
+  set swid $root.sb
+
+  blt::graph $pwid -leftmargin 80
+  pack $pwid -fill both -expand 1
+
+  $pwid legend configure -activebackground white
+
+  # configure standard xBLT things:
+  xblt::plotmenu $pwid -showbutton 1 -buttonlabel Menu -menuoncanvas 0
+  xblt::legmenu  $pwid -showseparator 0
+
+  xblt::hielems $pwid
+  xblt::crosshairs $pwid -show 1
+  xblt::measure $pwid
+  xblt::readout $pwid -variable v_readout -active 1
+  xblt::zoomstack $pwid -axes {x y} -recttype xy
+  $pwid element create res+ -xdata sig_xm -ydata sig_ym1 -symbol "" -color red -label ""
+  $pwid element create res- -xdata sig_xm -ydata sig_ym2 -symbol "" -color red -label ""
+  $pwid element create sig -xdata sig_x -ydata sig_y0 -symbol "" -color blue
+}
+
+
+##################################################
+## fft frame
+
+proc mk_fft_frame {root} {
+  frame $root
+
+  # make graph
+  set pwid $root.p
+  set swid $root.sb
+
+  blt::graph $pwid -leftmargin 80
+  grid $pwid -sticky wens -columnspan 2
+
+  $pwid legend configure -activebackground white
+
+  # configure standard xBLT things:
+  xblt::plotmenu $pwid -showbutton 1 -buttonlabel Menu -menuoncanvas 0
+  xblt::legmenu  $pwid -showseparator 0
+
+  xblt::hielems $pwid
+  xblt::crosshairs $pwid -show 1
+  xblt::measure $pwid
+  xblt::readout $pwid -variable v_readout -active 1
+  xblt::zoomstack $pwid -axes {x y} -recttype xy
+  $pwid element create average -xdata fft_xa -ydata fft_ya -symbol "" -color red
+  $pwid element create fft     -xdata fft_x  -ydata fft_y -symbol "" -color blue
+  $pwid axis configure y -title {Spectral density, nV/sqrt(Hz)}
+
+
+}
+
+##################################################
+## time plot frame
+
+proc mk_tplot_frame {root} {
+  frame $root
+  set graph $root.p
+  set swid $root.sb
+
+  blt::graph $graph -leftmargin 100
+  pack $graph -side top -expand yes -fill both
+  $graph legend configure -activebackground white
+
+  scrollbar $swid -orient horizontal
+  pack $swid -side bottom -fill x
+
+  # configure standard xBLT things:
+  xblt::plotmenu   $graph -showbutton 1 -buttonlabel Menu -menuoncanvas 0
+  xblt::legmenu    $graph
+  xblt::hielems    $graph
+  xblt::crosshairs $graph -variable v_crosshairs
+  xblt::measure    $graph
+  xblt::readout    $graph -variable v_readout -active 1;
+  xblt::zoomstack  $graph -scrollbutton 2 -axes x -recttype x
+  xblt::elemop     $graph
+  xblt::scroll     $graph $swid -timefmt 1
+
+  $graph axis create fre  -title Frequency -titlecolor black
+  $graph axis create amp  -title Amplitude -titlecolor black
+  $graph axis create rtau -title Width     -titlecolor black
+
+  $graph element create fre -xdata tvec -ydata fvec -mapy fre\
+    -symbol circle -pixels 1.5 -linewidth 1 -color blue
+  $graph element create rtau -xdata tvec -ydata wvec -mapy rtau\
+    -symbol circle -pixels 1.5 -linewidth 1 -color green
+  $graph element create amp  -xdata tvec -ydata avec -mapy amp\
+    -symbol circle -pixels 1.5 -linewidth 1 -color red
+
+  $graph element bind fre  <Enter> [list $graph yaxis use fre]
+  $graph element bind rtau <Enter> [list $graph yaxis use rtau]
+  $graph element bind amp  <Enter> [list $graph yaxis use amp]
+
+}
+
 ##################################################
 ## parameters frame
 
@@ -130,7 +410,7 @@ proc on_pars_apply {} {
 }
 
 proc mk_pars_frame {root} {
-
+  frame $root
   set w $root.pp
   labelframe $w -text {generator parameters}\
                 -font {-weight bold} -padx 5 -pady 5
@@ -192,310 +472,38 @@ proc mk_pars_frame {root} {
 }
 
 
-##################################################
-## measurement frame
-
-proc do_pulse {} {
-  global dev del meas st
-  global pars apars
-  global time amp rtau fre
-  global need_setup
-  global sigfile
-
-  if {$need_setup} {
-    set st "Setting parameters..."
-    $dev cmd setup $apars(fre) $apars(cyc) $apars(amp) $apars(sc)
-    $dev cmd set_freq_limits $apars(fmin) $apars(fmax)
-    set need_setup 0
-  }
-
-
-  set t0 [clock milliseconds]
-  set_busy
-  set ret [lindex [$dev cmd pulse $apars(tpre) $apars(time) $apars(dt) $sigfile] 0]
-
-  ## pars results
-  set time [lindex $ret 0]
-  set fre  [format %.6f [lindex $ret 1]]
-  set rtau [format %.6f [lindex $ret 2]]
-  set amp  [format %.6f [expr {1000*[lindex $ret 3]}]]
-
-  global maxlen
-  tvec append $time
-  fvec append $fre
-  wvec append $rtau
-  avec append $amp
-  # remove old values:
-  if {[tvec length] > [expr $maxlen+100]} {
-    tvec delete 0:99
-    fvec delete 0:99
-    wvec delete 0:99
-    avec delete 0:99
-  }
-
-  # make graph
-  set ncols [sig_load sig $sigfile]
-
-  global sig_x
-  set min $sig_x(min)
-  set max $sig_x(max)
-  sig_xm seq $min $max [expr {($max-$min)/500}]
-  sig_ym1 expr {0.5*1e-3*$amp*exp(-sig_xm*$rtau)}
-  sig_ym2 expr -sig_ym1
-
-  ## auto adjustments
-  if {$apars(fadj)} {
-    set apars(fre) [format %.3f $fre]
-    if {$apars(fre) < $apars(fmin)} {set apars(fre) $apars(fmin)}
-    if {$apars(fre) > $apars(fmax)} {set apars(fre) $apars(fmax)}
-    set pars(fre) $apars(fre)
-    set need_setup 1
-  }
-  if {$apars(tadj)} {
-    set apars(time) [format %.3f [expr {$apars(tx)/$rtau}]]
-    if {$apars(time) < $apars(tmin)} {set apars(time) $apars(tmin)}
-    if {$apars(time) > $apars(tmax)} {set apars(time) $apars(tmax)}
-    set pars(time) $apars(time)
-    set need_setup 1
-  }
-  if {$apars(radj)} {
-    global range_values
-    foreach r $range_values {
-      if {1e-3*$amp < 2*0.8*$r} {
-        set apars(sc) $r
-        set  pars(sc) $r
-        set need_setup 1
-        break
-      }
-    }
-  }
-
-  ## set up the next measurement if needed
-  set t1 [clock milliseconds]
-  set dt [expr int(1000*$del-$t1+$t0)]
-  if {$dt<0} {set dt 0}
-  if {$meas} {
-    set st "Waiting for the next measurement..."
-    after [expr $dt] do_pulse
-  } else {
-    set_ready
-  }
-}
-
-proc mk_meas_frame {root} {
-  label $root.amp    -textvariable amp  -font {-size 15} -text 0 -width 12
-  label $root.amp_l  -text "P-P Amplitude, mV"
-  label $root.rtau   -textvariable rtau -font {-size 15} -text 0 -width 12
-  label $root.rtau_l -text "1/Relaxation time, 1/s"
-  label $root.fre    -textvariable fre  -font {-size 15} -text 0 -width 12
-  label $root.fre_l  -text "Frequency, Hz"
-  grid $root.amp_l  $root.amp  -sticky w
-  grid $root.rtau_l $root.rtau -sticky w
-  grid $root.fre_l  $root.fre  -sticky w
-
-
-  # make graph
-  set pwid $root.p
-  set swid $root.sb
-
-  blt::graph $pwid -leftmargin 60
-  grid $pwid -sticky wens -columnspan 2
-
-  scrollbar $swid -orient horizontal
-  grid $swid -sticky we -columnspan 2
-
-  $pwid legend configure -activebackground white
-
-  # configure standard xBLT things:
-  xblt::plotmenu $pwid -showbutton 1 -buttonlabel Menu -menuoncanvas 0
-  xblt::legmenu  $pwid -showseparator 0
-
-  xblt::hielems $pwid
-  xblt::crosshairs $pwid -show 1
-  xblt::measure $pwid
-  xblt::readout $pwid -variable v_readout -active 1
-  xblt::zoomstack $pwid -axes x -recttype x
-  xblt::scroll $pwid $swid -timefmt 0
-  $pwid element create res+ -xdata sig_xm -ydata sig_ym1 -symbol "" -color red -label ""
-  $pwid element create res- -xdata sig_xm -ydata sig_ym2 -symbol "" -color red -label ""
-  $pwid element create sig -xdata sig_x -ydata sig_y0 -symbol "" -color blue
-
-  frame $root.m
-  checkbutton $root.m.meas -text "Repeat measurements with period" -variable meas
-  entry       $root.m.del -textvariable del -width 7
-  label       $root.m.dll  -text " seconds"
-  grid $root.m -columnspan 2 -sticky nw
-
-
-  grid $root.m.meas $root.m.del $root.m.dll -sticky ew
-  grid $root.m -columnspan 2 -sticky ew
-
-  button $root.run -text "Run" -command do_pulse -state disabled
-  grid $root.run -sticky e -pady 10 -padx 10 -columnspan 2
-}
-
-##################################################
-## time plot frame
-
-proc mk_tplot_frame {root} {
-  set graph $root.p
-  set swid $root.sb
-
-  blt::graph $graph -leftmargin 100
-  pack $graph -side top -expand yes -fill both
-  $graph legend configure -activebackground white
-
-  scrollbar $swid -orient horizontal
-  pack $swid -side bottom -fill x
-
-  # configure standard xBLT things:
-  xblt::plotmenu   $graph -showbutton 1 -buttonlabel Menu -menuoncanvas 0
-  xblt::legmenu    $graph
-  xblt::hielems    $graph
-  xblt::crosshairs $graph -variable v_crosshairs
-  xblt::measure    $graph
-  xblt::readout    $graph -variable v_readout -active 1;
-  xblt::zoomstack  $graph -scrollbutton 2 -axes x -recttype x
-  xblt::elemop     $graph
-  xblt::scroll     $graph $swid -timefmt 1
-
-  $graph axis create fre  -title Frequency -titlecolor black
-  $graph axis create amp  -title Amplitude -titlecolor black
-  $graph axis create rtau -title Width     -titlecolor black
-
-  $graph element create fre -xdata tvec -ydata fvec -mapy fre\
-    -symbol circle -pixels 1.5 -linewidth 1 -color blue
-  $graph element create rtau -xdata tvec -ydata wvec -mapy rtau\
-    -symbol circle -pixels 1.5 -linewidth 1 -color green
-  $graph element create amp  -xdata tvec -ydata avec -mapy amp\
-    -symbol circle -pixels 1.5 -linewidth 1 -color red
-
-  $graph element bind fre  <Enter> [list $graph yaxis use fre]
-  $graph element bind rtau <Enter> [list $graph yaxis use rtau]
-  $graph element bind amp  <Enter> [list $graph yaxis use amp]
-
-}
-
-##################################################
-## noise frame
-
-proc do_noise_clear {} {
-  global noise_avrgs
-  set noise_avrgs 0
-  noise_y  set {}
-  noise_ya set {}
-}
-
-proc do_noise {} {
-  global dev st apars
-  global need_setup
-  global noisefile
-
-  if {$need_setup} {
-    set st "Setting parameters..."
-    $dev cmd setup $apars(fre) $apars(cyc) $apars(amp) $apars(sc)
-    $dev cmd set_freq_limits $apars(fmin) $apars(fmax)
-    set need_setup 0
-    do_noise_clear
-  }
-
-  set_busy
-  set ret [$dev cmd noise $noisefile]
-
-  noise_x set {}
-  noise_y set {}
-  foreach l $ret {
-    noise_x append [lindex $l 0]
-    noise_y append [expr {1e9*sqrt([lindex $l 1])}]
-  }
-  global noise_avrgs
-  if {[noise_ya length] < [noise_y length]} {noise_ya expr noise_y*0}
-  noise_ya expr {(noise_ya*$noise_avrgs + noise_y)/($noise_avrgs+1)}
-  incr noise_avrgs
-  set_ready
-  set need_setup 1
-}
-
-proc mk_noise_frame {root} {
-
-  # make graph
-  set pwid $root.p
-  set swid $root.sb
-
-  blt::graph $pwid -leftmargin 60
-  grid $pwid -sticky wens -columnspan 2
-
-  scrollbar $swid -orient horizontal
-  grid $swid -sticky we -columnspan 2
-
-  $pwid legend configure -activebackground white
-
-  # configure standard xBLT things:
-  xblt::plotmenu $pwid -showbutton 1 -buttonlabel Menu -menuoncanvas 0
-  xblt::legmenu  $pwid -showseparator 0
-
-  xblt::hielems $pwid
-  xblt::crosshairs $pwid -show 1
-  xblt::measure $pwid
-  xblt::readout $pwid -variable v_readout -active 1
-  xblt::zoomstack $pwid -axes x -recttype x
-  xblt::scroll $pwid $swid -timefmt 0
-  $pwid element create average -xdata noise_x -ydata noise_ya -symbol "" -color red
-  $pwid element create noise -xdata noise_x -ydata noise_y -symbol "" -color blue
-  $pwid axis configure y -title {Noise, nV/sqrt(Hz)}
-
-  button $root.run   -text "Run"   -command do_noise -state disabled
-  button $root.clear -text "Clear" -command do_noise_clear
-  grid $root.clear $root.run -sticky e -pady 10 -padx 10
-}
-
-##################################################
-# block/unblock buttons
-proc set_busy {} {
-  .tabs.meas.run configure -state disabled
-  .tabs.noise.run configure -state disabled
-  global st
-  set st "Measuring"
-}
-proc set_ready {} {
-  .tabs.meas.run configure -state normal
-  .tabs.noise.run configure -state normal
-  global st
-  set st "Ready"
-}
 
 
 ##################################################
 # rest of the interface
 
-blt::tabset .tabs -side left
-frame .tabs.meas
-frame .tabs.tplot
-frame .tabs.pars
-frame .tabs.noise
+mk_meas_frame {.meas}
+pack .meas -fill x -expand 1
 
-.tabs insert end meas -window .tabs.meas\
-   -anchor n -text "Measure" -fill both
+blt::tabset .tabs -side top
+
+mk_splot_frame {.tabs.splot}
+mk_fft_frame   {.tabs.fft}
+mk_tplot_frame {.tabs.tplot}
+mk_pars_frame  {.tabs.pars}
+
+## tabset
+.tabs insert end splot -window .tabs.splot\
+   -anchor n -text "Signal plot" -fill both
+.tabs insert end fft -window .tabs.fft\
+   -anchor n -text "FFT plot" -fill both
 .tabs insert end tplot -window .tabs.tplot\
    -anchor n -text "Time plot" -fill both
 .tabs insert end pars -window .tabs.pars\
    -anchor n -text "Parameters" -fill both
-.tabs insert end noise -window .tabs.noise\
-   -anchor n -text "Noise" -fill both
 
-mk_pars_frame {.tabs.pars}
-mk_meas_frame {.tabs.meas}
-mk_tplot_frame {.tabs.tplot}
-mk_noise_frame {.tabs.noise}
 pack .tabs -fill both -expand 1
 
-
 ## status line on the bottom
-frame .sline
-label .sline.st -textvariable st
-button .sline.exit -text "Exit" -command exit
-grid .sline.exit .sline.st -sticky w -padx 10
-pack .sline -fill x -expand 0
+label .st -textvariable st
+button .exit -text "Exit" -command exit
+pack .exit -side left -padx 10
+pack .st   -side left -padx 10 -fill x
 
 ##################################################
 
@@ -509,6 +517,6 @@ set range_values [lindex [$dev cmd get_osc_sc] 0]
 
 # set some parameters, unlock run buttons
 on_pars_apply
-set_ready
+set_state ready
 
 
