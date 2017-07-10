@@ -33,14 +33,11 @@ set options [list \
 #      cnt  - pulse count
 #      volt - pulse voltage
 #      sc   - oscilloscope scale
-#   pulse <tpre> <time> <dt> <sigfile> - do the pulse
+#   pulse <tpre> <time> <dt> - do the pulse
 #      time  - record time
 #      tpre  - pretrigger time
 #      dt    - record rate
 #   get_osc_sc - get possible scale settings for the oscilloscope
-#   get_sigfile - get last recorded file
-#   set_freq_limits
-#   noise
 
 ## Requirements:
 #
@@ -162,8 +159,7 @@ itcl::class ForkPulseDriver {
 
 
   # Return list of commands which can be run from stdin.
-  method list {} {return \
-    {list pulse setup get_osc_sc get_sigfile set_freq_limits noise} }
+  method list {} {return {list pulse setup get_osc_sc get_sigfile set_freq_limits noise} }
 }
 
 #############################################################

@@ -127,99 +127,101 @@ proc do_pulse {} {
   global need_setup
   global sigfile
 
-  if {$need_setup} {
-    set st "Setting parameters..."
-    $dev cmd setup $apars(fre) $apars(cyc) $apars(amp) $apars(sc)
-    $dev cmd set_freq_limits $apars(fmin) $apars(fmax)
-    set need_setup 0
-  }
-  set st "Measuring..."
+  catch {
+    if {$need_setup} {
+      set st "Setting parameters..."
+      $dev cmd setup $apars(fre) $apars(cyc) $apars(amp) $apars(sc)
+      $dev cmd set_freq_limits $apars(fmin) $apars(fmax)
+      set need_setup 0
+    }
+    set st "Measuring..."
 
-  set t0 [clock milliseconds]
-  set ret [lindex [$dev cmd pulse $apars(tpre) $apars(time) $apars(dt) $sigfile] 0]
+    set t0 [clock milliseconds]
+    set ret [lindex [$dev cmd pulse $apars(tpre) $apars(time) $apars(dt) $sigfile] 0]
 
-  ## pars results
-  set time [lindex $ret 0]
-  set fre  [format %.6f [lindex $ret 1]]
-  set rtau [format %.6f [lindex $ret 2]]
-  set amp  [format %.6f [expr {1000*[lindex $ret 3]}]]
+    ## pars results
+    set time [lindex $ret 0]
+    set fre  [format %.6f [lindex $ret 1]]
+    set rtau [format %.6f [lindex $ret 2]]
+    set amp  [format %.6f [expr {1000*[lindex $ret 3]}]]
 
-  global maxlen
-  tvec append $time
-  fvec append $fre
-  wvec append $rtau
-  avec append $amp
-  # remove old values:
-  if {[tvec length] > [expr $maxlen+100]} {
-    tvec delete 0:99
-    fvec delete 0:99
-    wvec delete 0:99
-    avec delete 0:99
-  }
+    global maxlen
+    tvec append $time
+    fvec append $fre
+    wvec append $rtau
+    avec append $amp
+    # remove old values:
+    if {[tvec length] > [expr $maxlen+100]} {
+      tvec delete 0:99
+      fvec delete 0:99
+      wvec delete 0:99
+      avec delete 0:99
+    }
 
-  ## load signal
-  set ncols [sig_load sig $sigfile]
+    ## load signal
+    set ncols [sig_load sig $sigfile]
 
-  global sig_x
-  set min $sig_x(min)
-  set max $sig_x(max)
-  sig_xm seq $min $max [expr {($max-$min)/500}]
-  sig_ym1 expr {0.5*1e-3*$amp*exp(-sig_xm*$rtau)}
-  sig_ym2 expr -sig_ym1
-
-
-  ## load FFT
-#  set ret [exec sig_filter -f fft_pow_lavr -F $apars(fmin) -G $apars(fmax) -N 250 $sigfile]
-  set ret [exec sig_filter -f fft_pow_lavr -N 10000 $sigfile]
-  fft_x set {}
-  fft_y set {}
-  foreach l [split $ret "\n"] {
-    fft_x append [lindex $l 0]
-    fft_y append [lindex $l 1]
-  }
-  fft_y expr {sqrt(fft_y)*1e9}
+    global sig_x
+    set min $sig_x(min)
+    set max $sig_x(max)
+    sig_xm seq $min $max [expr {($max-$min)/500}]
+    sig_ym1 expr {0.5*1e-3*$amp*exp(-sig_xm*$rtau)}
+    sig_ym2 expr -sig_ym1
 
 
-  global fft_y
-  fft_xa set [list $apars(fmin) $apars(fmax)]
-  set s 0
-  set n 0
-  set ind [fft_x search $apars(fmin) $apars(fmax)]
-  foreach i $ind {
-    set s [expr {$s+$fft_y($i)}]
-    incr n
-  }
-  set mean [expr $s/$n]
-  fft_ya set [list $mean $mean]
+    ## load FFT
+    set ret [exec sig_filter -f fft_pow_lavr -N 10000 $sigfile]
+    fft_x set {}
+    fft_y set {}
+    foreach l [split $ret "\n"] {
+      fft_x append [lindex $l 0]
+      fft_y append [lindex $l 1]
+    }
+    fft_y expr {sqrt(fft_y)*1e9}
+
+
+    global fft_y
+    fft_xa set [list $apars(fmin) $apars(fmax)]
+    set s 0
+    set n 0
+    set ind [fft_x search $apars(fmin) $apars(fmax)]
+    foreach i $ind {
+      set s [expr {$s+$fft_y($i)}]
+      incr n
+    }
+    set mean [expr $s/$n]
+    fft_ya set [list $mean $mean]
 
 
 
-  ## auto adjustments
-  if {$apars(fadj)} {
-    set apars(fre) [format %.3f $fre]
-    if {$apars(fre) < $apars(fmin)} {set apars(fre) $apars(fmin)}
-    if {$apars(fre) > $apars(fmax)} {set apars(fre) $apars(fmax)}
-    set pars(fre) $apars(fre)
-    set need_setup 1
-  }
-  if {$apars(tadj)} {
-    set apars(time) [format %.3f [expr {$apars(tx)/$rtau}]]
-    if {$apars(time) < $apars(tmin)} {set apars(time) $apars(tmin)}
-    if {$apars(time) > $apars(tmax)} {set apars(time) $apars(tmax)}
-    set pars(time) $apars(time)
-    set need_setup 1
-  }
-  if {$apars(radj)} {
-    global range_values
-    foreach r $range_values {
-      if {1e-3*$amp < 2*0.8*$r} {
-        set apars(sc) $r
-        set  pars(sc) $r
-        set need_setup 1
-        break
+    ## auto adjustments
+    if {$apars(fadj)} {
+      set apars(fre) [format %.3f $fre]
+      if {$apars(fre) < $apars(fmin)} {set apars(fre) $apars(fmin)}
+      if {$apars(fre) > $apars(fmax)} {set apars(fre) $apars(fmax)}
+      set pars(fre) $apars(fre)
+      set need_setup 1
+    }
+    if {$apars(tadj)} {
+      set apars(time) [format %.3f [expr {$apars(tx)/$rtau}]]
+      if {$apars(time) < $apars(tmin)} {set apars(time) $apars(tmin)}
+      if {$apars(time) > $apars(tmax)} {set apars(time) $apars(tmax)}
+      set pars(time) $apars(time)
+      set need_setup 1
+    }
+    if {$apars(radj)} {
+      global range_values
+      foreach r $range_values {
+        if {1e-3*$amp < 2*0.8*$r} {
+          set apars(sc) $r
+          set  pars(sc) $r
+          set need_setup 1
+          break
+        }
       }
     }
-  }
+
+  }; #catch
 
   ## set up the next measurement if needed
   set t1 [clock milliseconds]
