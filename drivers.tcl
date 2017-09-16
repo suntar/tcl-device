@@ -163,8 +163,7 @@ itcl::class tenma_ps {
   constructor {pars} {
     set dev [::open $pars RDWR]
     set del 50
-    set bufsize 1024
-    fconfigure $dev -blocking false -buffering line
+    fconfigure $dev -blocking false -translation binary
   }
   # close device
   destructor {
@@ -172,14 +171,15 @@ itcl::class tenma_ps {
   }
   # write to device without reading answer
   method write {v} {
-    puts -nonewline $dev $v; # no newline!
-    after $del
+    set cmd [string toupper $v]
+    puts -nonewline $dev $cmd; # no newline!
     flush $dev
+    after $del
   }
   # read from device
   method read {} {
     after $del
-    return [::read $dev $bufsize]
+    return [::read $dev]
   }
   # write and then read
   method cmd {v} {
@@ -187,8 +187,7 @@ itcl::class tenma_ps {
     puts -nonewline $dev $cmd
     flush $dev
     after $del
-    if {[regexp {\?} $cmd]>0} { return [::read $dev $bufsize] }\
-    else {return ""}
+    return [::read $dev]
   }
 }
 ###########################################################
