@@ -22,7 +22,7 @@ set pars(cyc) 10;     # pulse count
 set pars(time) 5;     # record time
 set pars(tpre) 0.01;  # pretrigger time
 set pars(dt) 1e-5;    # record sampling rate
-set pars(sc)  0.2;    # oscilloscope range
+set pars(sc)  0.5;    # oscilloscope range
 
 # auto adjust parameters
 set pars(fadj) 1;     # adjust frequency
@@ -116,9 +116,8 @@ proc mk_empty {w} {
 
 
 
-
 ##################################################
-## measurement frame
+## pulse function
 
 proc do_pulse {} {
   global dev del meas st
@@ -194,7 +193,7 @@ proc do_pulse {} {
 
 
 
-    ## auto adjustments
+    ## adjust frequency if needed
     if {$apars(fadj)} {
       set apars(fre) [format %.3f $fre]
       if {$apars(fre) < $apars(fmin)} {set apars(fre) $apars(fmin)}
@@ -202,6 +201,7 @@ proc do_pulse {} {
       set pars(fre) $apars(fre)
       set need_setup 1
     }
+    ## adjust record time if needed
     if {$apars(tadj)} {
       set apars(time) [format %.3f [expr {$apars(tx)/$rtau}]]
       if {$apars(time) < $apars(tmin)} {set apars(time) $apars(tmin)}
@@ -209,6 +209,7 @@ proc do_pulse {} {
       set pars(time) $apars(time)
       set need_setup 1
     }
+    ## adjust oscilloscope range if needed
     if {$apars(radj)} {
       global range_values
       foreach r $range_values {
@@ -264,6 +265,8 @@ proc set_state {s} {
   error "unknown state"
 }
 
+##################################################
+## measurement frame
 
 proc mk_meas_frame {root} {
   frame $root
