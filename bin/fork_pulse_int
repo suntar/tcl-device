@@ -56,18 +56,20 @@ set amp 0;   # amplitude
 set rtau 0;  # 1/relaxation time
 set fre 0;   # frequency
 
+# data for time plot
 blt::vector create tvec
 blt::vector create avec
 blt::vector create wvec
 blt::vector create fvec
 
+# data for raw signal plot and fitted curves
 blt::vector create sig_x
 blt::vector create sig_y0
-
 blt::vector create sig_xm
 blt::vector create sig_ym1
 blt::vector create sig_ym2
 
+# data for fft plot
 blt::vector create fft_x
 blt::vector create fft_y
 
@@ -336,9 +338,7 @@ proc mk_fft_frame {root} {
   xblt::readout $pwid -variable v_readout -active 1
   xblt::zoomstack $pwid -axes {x y} -recttype xy
   $pwid element create fft     -xdata fft_x  -ydata fft_y -symbol "" -color blue
-  $pwid axis configure y -title {Spectral density, nV/sqrt(Hz)}
-
-
+  $pwid axis configure y -title {Spectral density, nV/sqrt(Hz)} -logscale 1
 }
 
 ##################################################
