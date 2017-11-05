@@ -70,8 +70,6 @@ blt::vector create sig_ym2
 
 blt::vector create fft_x
 blt::vector create fft_y
-blt::vector create fft_xa
-blt::vector create fft_ya
 
 ##################################################
 
@@ -177,20 +175,6 @@ proc do_pulse {} {
       fft_y append [lindex $l 1]
     }
     fft_y expr {sqrt(fft_y)*1e9}
-
-
-    global fft_y
-    fft_xa set [list $apars(fmin) $apars(fmax)]
-    set s 0
-    set n 0
-    set ind [fft_x search $apars(fmin) $apars(fmax)]
-    foreach i $ind {
-      set s [expr {$s+$fft_y($i)}]
-      incr n
-    }
-    set mean [expr $s/$n]
-    fft_ya set [list $mean $mean]
-
 
 
     ## adjust frequency if needed
@@ -351,7 +335,6 @@ proc mk_fft_frame {root} {
   xblt::measure $pwid
   xblt::readout $pwid -variable v_readout -active 1
   xblt::zoomstack $pwid -axes {x y} -recttype xy
-  $pwid element create average -xdata fft_xa -ydata fft_ya -symbol "" -color red
   $pwid element create fft     -xdata fft_x  -ydata fft_y -symbol "" -color blue
   $pwid axis configure y -title {Spectral density, nV/sqrt(Hz)}
 
