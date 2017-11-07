@@ -291,7 +291,6 @@ proc mk_splot_frame {root} {
 
   # make graph
   set pwid $root.p
-  set swid $root.sb
 
   blt::graph $pwid -leftmargin 80
   pack $pwid -fill both -expand 1
@@ -310,6 +309,7 @@ proc mk_splot_frame {root} {
   $pwid element create res+ -xdata sig_xm -ydata sig_ym1 -symbol "" -color red -label ""
   $pwid element create res- -xdata sig_xm -ydata sig_ym2 -symbol "" -color red -label ""
   $pwid element create sig -xdata sig_x -ydata sig_y0 -symbol "" -color blue
+  $pwid axis configure y -title {Amplitude, V}
 }
 
 
@@ -321,10 +321,9 @@ proc mk_fft_frame {root} {
 
   # make graph
   set pwid $root.p
-  set swid $root.sb
 
   blt::graph $pwid -leftmargin 80
-  grid $pwid -sticky wens -columnspan 2
+  pack $pwid -fill both -expand 1
 
   $pwid legend configure -activebackground white
 
@@ -354,7 +353,10 @@ proc mk_tplot_frame {root} {
   $graph legend configure -activebackground white
 
   scrollbar $swid -orient horizontal
-  pack $swid -side bottom -fill x
+  pack $swid -fill x
+
+  button $root.clear_btn -text "Clear" -command "on_tplot_clear $graph"
+  pack $root.clear_btn -side right
 
   # configure standard xBLT things:
   xblt::plotmenu   $graph -showbutton 1 -buttonlabel Menu -menuoncanvas 0
@@ -382,6 +384,14 @@ proc mk_tplot_frame {root} {
   $graph element bind rtau <Enter> [list $graph yaxis use rtau]
   $graph element bind amp  <Enter> [list $graph yaxis use amp]
 
+#  tvec notify callback "$graph axis configure x -stepsize 0 -subdivisions 0"
+}
+
+proc on_tplot_clear {graph} {
+  tvec delete 0:end
+  fvec delete 0:end
+  wvec delete 0:end
+  avec delete 0:end
 }
 
 ##################################################
