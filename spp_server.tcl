@@ -49,6 +49,7 @@ namespace eval spp_server {
   # read request from stdin and write answer
   proc read_cmd {srv} {
     gets stdin line
+
     # connection is closed:
     if {[eof stdin]} {itcl::delete object $srv; exit}
 
@@ -97,9 +98,8 @@ namespace eval spp_server {
     spp_server::_print_ok
 
     # read requests, run commands
-    fconfigure stdin -buffering line -blocking no
-    fileevent stdin readable "spp_server::read_cmd $srv"
-    vwait forever
+    fconfigure stdin -buffering line -blocking yes
+    while {1} {read_cmd $srv}
   }
 
 }
