@@ -41,13 +41,15 @@ itcl::class SweepController {
   variable cs2;     # set current - 2nd chan
                     # set and measured current, A
 
-
   variable db_dev
   variable db_val
   variable db_ann
   variable max_volt
   variable max_rate
   variable min_t_step
+
+
+  ######################################
 
   constructor {opts} {
     #Parse options.
@@ -81,6 +83,38 @@ itcl::class SweepController {
 
   ######################################
 
+  # put comment into the database (internal use)
+  method put_comment {c} {
+    if {$db_dev != {} && $db_ann != {} } {
+      $db_dev cmd "put $db_ann now $c"
+      $db_dev cmd "sync"
+    }
+  }
+
+  # put value into the database
+  method put_value {args} {
+    if { $db_dev != {} && $db_val != {}} {
+      $db_dev cmd "put $db_val now $args"
+      $db_dev cmd "sync"
+    }
+  }
+
+  # access value database
+  method db_value {cmd args} {
+    if { $db_dev != {} && $db_val != {}} {
+      return [$db_dev cmd "$cmd $db_val $args"]
+    }
+  }
+
+  # access comment database
+  method db_comment {cmd args} {
+    if { $db_dev != {} && $db_ann != {}} {
+      return [$db_dev cmd "$cmd $db_ann $args"]
+    }
+  }
+
+  ######################################
+
   # set current for both channels (internal)
   method set_curr {ch val} {
     if {$ch == 1} { set cs1 [expr {$val-$cs2}]; $dev1 set_curr $cs1 }\
@@ -102,23 +136,21 @@ itcl::class SweepController {
     return [expr $cs1+$cs2]
   }
 
-  # voltage (1st channel only)
+  # get voltage (1st channel only)
   method get_volt {} { return [ $dev1 get_volt ]}
 
-  # stat (1st channel only)
+  # get stat (1st channel only)
   method get_stat {} { return [ $dev1 get_stat ]}
 
 
   # Return list of commands which can be run from stdin.
-  method list {} {return {list sweep sweep_stop reset get_scurr get_mcurr get_volt get_stat} }
+  method list {} {return {list sweep sweep_stop reset get_scurr get_mcurr get_volt get_stat db_value db_comment} }
 
   ######################################
   # stop sweep and reset device
   method reset {} {
-    if { $db_dev != {} && $db_val != {} } {
-      $db_dev cmd "put $db_ann now reset"
-      $db_dev cmd "sync"
-    }
+
+    put_comment "reset"
     after cancel $rh
     set $rh {}
 
@@ -138,10 +170,7 @@ itcl::class SweepController {
   ######################################
   # stop sweep
   method sweep_stop {} {
-    if {$rh != {} && $db_dev != {} && $db_val != {} } {
-      $db_dev cmd "put $db_ann now sweep_stop"
-      $db_dev cmd "sync"
-    }
+    if {$rh != {} } {put_comment "sweep_stop"}
     after cancel $rh
     return
   }
@@ -151,11 +180,7 @@ itcl::class SweepController {
 
     set t1 [clock milliseconds]
     # write annotation in the beginning of the sweep
-    if {$first && $db_dev != {} && $db_ann != {} } {
-      $db_dev cmd "put $db_ann now sweep to $dest A at $rate A/s"
-      $db_dev cmd "sync"
-    }
-
+    if {$first } {put_comment "sweep to $dest A at $rate A/s"}
     after cancel $rh
 
 
@@ -183,15 +208,13 @@ itcl::class SweepController {
     # make measurements, put current values in the database
     set cm1 [ $dev1 get_curr ]
     set gval {}
-    if {$gdev != {}} { set gval [ $gdev get_auto ] }
+    if {$gdev != {}} { set gval [ $gdev get ] }
     if {$dev2 != {}} { set cm2 [$dev2 get_curr] } else {set cm2 0}
     set cm [expr {$cm1+$cm2}]
     set cs [expr {$cs1+$cs2}]
 
-    if { $db_dev != {} && $db_val != {}} {
-      $db_dev cmd "put $db_val now $cm $cs [get_volt] $gval"
-      $db_dev cmd "sync"
-    }
+    put_value $cm $cs [get_volt] $gval
+
 
 
     # find sweep direction
@@ -247,10 +270,7 @@ itcl::class SweepController {
          abs($cm2-$cs2) > $tolerance2} {
       set cs1 $cm1
       set cs2 $cm2
-      if { $db_dev != {} && $db_ann != {}} {
-        $db_dev cmd "put $db_ann now current jump to $cm"
-        $db_dev cmd "sync"
-      }
+      put_comment "current jump to $cm"
       return
     }
 
@@ -274,10 +294,7 @@ itcl::class SweepController {
         $db_dev cmd "put $db_val now $cm $cs [get_volt]"
         $db_dev cmd "sync"
       }
-      if { $db_dev != {} && $db_ann != {}} {
-        $db_dev cmd "put $db_ann now sweep finished at $cs"
-        $db_dev cmd "sync"
-      }
+      put_comment "sweep finished at $cs"
       return
     }
 
