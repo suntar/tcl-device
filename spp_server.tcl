@@ -46,19 +46,26 @@ namespace eval spp_server {
     puts $res
   }
 
+  # Read_cmd wrapper:
+  # We do not want to read next command until previous one
+  # will be processed and answered. But we still need
+  # non-blocking reading to allow programs like sweeper work
+  # during waiting for commands.
+  proc read_cmd_wrapper {srv} {
+    fileevent stdin readable ""
+    read_cmd $srv
+    fileevent stdin readable "spp_server::read_cmd $srv"
+  }
+
   # read request from stdin and write answer
   proc read_cmd {srv} {
-    fileevent stdin readable ""
     gets stdin line
 
     # connection is closed:
     if {[eof stdin]} {itcl::delete object $srv; exit}
 
     # skip empty lines:
-    if {$line == {}} {
-      fileevent stdin readable "spp_server::read_cmd $srv"
-      return
-    }
+    if {$line == {}} { return }
 
     if {$spp_server::int_type == 0} {  ## interface type 0
       set cmd [lindex $line 0]
@@ -66,18 +73,15 @@ namespace eval spp_server {
       # check if the first word is a valid command:
       if {[catch {set lst [$srv list]}]} {
         spp_server::_print_err
-        fileevent stdin readable "spp_server::read_cmd $srv"
         return
       }
       if { $cmd ni $lst} {
         puts "${spp_server::ch}Error: Unknown command: $cmd"
-        fileevent stdin readable "spp_server::read_cmd $srv"
         return
       }
       # run server method, return its output followed by OK or an Error:
       if {[catch {set ret [$srv {*}$line]}]} {
         spp_server::_print_err
-        fileevent stdin readable "spp_server::read_cmd $srv"
         return
       }
     }\
@@ -85,14 +89,12 @@ namespace eval spp_server {
       # run server method, return its output followed by OK or an Error:
       if {[catch {set ret [$srv cmd {*}$line]}]} {
         spp_server::_print_err
-        fileevent stdin readable "spp_server::read_cmd $srv"
         return
       }
     }
 
     spp_server::answer $ret
     spp_server::_print_ok
-    fileevent stdin readable "spp_server::read_cmd $srv"
     return
   }
 
@@ -108,7 +110,7 @@ namespace eval spp_server {
 
     # read requests, run commands
     fconfigure stdin -buffering line -blocking no
-    fileevent stdin readable "spp_server::read_cmd $srv"
+    fileevent stdin readable "spp_server::read_cmd_wrapper $srv"
     vwait forever
   }
 
