@@ -30,7 +30,7 @@ set pars(fmin) 32000; # min value
 set pars(fmax) 33000; # max value
 set pars(tadj) 1;     # adjust time
 set pars(tmin) 0.1;   # min value
-set pars(tmax) 20;    # max value
+set pars(tmax) 200;   # max value
 set pars(tx)   5;     # time factor
 set pars(radj) 1;     # adjust range
 
