@@ -120,7 +120,6 @@ itcl::class SweepController {
   # reset devices and start main loop
   method reset {} {
 
-    after cancel $rh
 
     $dev1 set_ovp $max_volt
     $dev1 cc_reset
@@ -210,6 +209,9 @@ itcl::class SweepController {
   # Main loop
 
   method loop {} {
+
+    after cancel $rh
+
     # measure and record value
     if {!$skip || $state==1 || $msg != {}} { put_value }
     set state 0
