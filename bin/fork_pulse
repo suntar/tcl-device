@@ -14,6 +14,7 @@ package require xBlt
 # -g -gen_dev   -- generator device\
 # -d -db_dev    -- database device (can be empty)\
 # -n -db_val    -- database name for numerical values\
+# -p -db_par    -- database name for measurement parameters\
 # -a -db_ann    -- database name for annatations\
 
 set options [list \
@@ -21,6 +22,7 @@ set options [list \
 {-g -gen_dev}  gen_dev  {}\
 {-d -db_dev}   db_dev   {}\
 {-n -db_val}   db_val   {}\
+{-p -db_par}   db_par   {}\
 {-a -db_ann}   db_ann   {}\
 ]
 #############################################################
@@ -53,6 +55,7 @@ itcl::class ForkPulseDriver {
   variable gen_dev
   variable db_dev
   variable db_val
+  variable db_par
   variable db_ann
 
   variable setup_done 0
@@ -109,9 +112,20 @@ itcl::class ForkPulseDriver {
     $osc_dev cmd chan_set B 1 DC 10
     $osc_dev cmd trig_set B 0.1 FALLING 0
 
-    if {$db_dev != {} && $db_ann !={} } {
-      $db_dev cmd put $db_ann now "Fork setup: FREQ=$freq CNT=$cnt VOLT=$volt SC=$sc"
+#    if {$db_dev != {} && $db_ann !={} } {
+#      $db_dev cmd put $db_ann now "Fork setup: FREQ=$freq CNT=$cnt VOLT=$volt SC=$sc"
+#    }
+
+    if {$db_dev != {} && $db_par !={} } {
+      set prev [lindex [$db_dev cmd get $db_par] 0]
+      if { ([lindex $prev 1] != $freq) ||\
+           ([lindex $prev 2] != $cnt)  ||\
+           ([lindex $prev 3] != $volt) ||\
+           ([lindex $prev 4] != $sc) } {
+        $db_dev cmd put $db_par now $freq $cnt $volt $sc
+      }
     }
+
     set setup_done 1
     return
   }
