@@ -49,8 +49,8 @@ proc lock_wait {name timeout {only_others 0}} {
   if { ! [file isdirectory "/proc/$p"] } { return }
   if {$only_others && $p == [pid]} { return }
 
-  set dt 100
-  set timeout [expr {$timeout-$dt}]
   if {$timeout < 0} {error "Locking timeout: $name"}
-  after 100 lock_wait $name $timeout $only_others
+  set dt 100
+  after $dt
+  lock_wait $name [expr {$timeout-$dt}] $only_others
 }
