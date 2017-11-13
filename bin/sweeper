@@ -133,6 +133,7 @@ itcl::class SweepController {
 
     put_comment "reset"
     loop
+    return {}
   }
 
   ######################################
@@ -232,7 +233,6 @@ itcl::class SweepController {
         put_comment "current jump to [get_scurr]"
     }
 
-
     if {$rate > 0} { step }
 
     set rh [after [expr int($tstep*1000)] "$this loop"]
@@ -288,12 +288,14 @@ itcl::class SweepController {
     set rate [expr abs($rate_)]
     set dest $dest_
     set msg "sweep to $dest A at $rate A/s"
+    loop
     return
   }
 
   method sweep_stop {} {
     set rate 0
     set msg "sweep stoped"
+    loop
     return
   }
 
