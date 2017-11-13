@@ -54,7 +54,7 @@ namespace eval spp_server {
   proc read_cmd_wrapper {srv} {
     fileevent stdin readable ""
     read_cmd $srv
-    fileevent stdin readable "spp_server::read_cmd $srv"
+    fileevent stdin readable "spp_server::read_cmd_wrapper $srv"
   }
 
   # read request from stdin and write answer
