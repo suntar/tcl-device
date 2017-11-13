@@ -18,6 +18,7 @@ proc lock {name} {
 
   set f [open $ftmp w]
   puts $f [pid]
+  puts $f [info script]
   close $f
   file rename -force $ftmp $fname
 }
@@ -43,13 +44,18 @@ proc lock_wait {name timeout {only_others 0}} {
   if [ catch {
     set f [open $fname r]
     set p [gets $f]
+    set n [gets $f]
     close $f
   }] {return}
 
   if { ! [file isdirectory "/proc/$p"] } { return }
   if {$only_others && $p == [pid]} { return }
 
-  if {$timeout < 0} {error "Locking timeout: $name"}
+  if {$timeout < 0} {
+    if {$p == [pid]} {error "$name is locked by myself ($n: $p)"}
+    error "$name is locked by $n: $p"
+  }
+
   set dt 100
   after $dt
   lock_wait $name [expr {$timeout-$dt}] $only_others
