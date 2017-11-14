@@ -2,6 +2,11 @@
 
 # current sweeper with stdin/stdout interface
 
+# Note: there is a loop which is running forever and
+# commands which are called by user.
+# It can be a collision with device access (by measurement commands)
+# but is should be solved by propper locking
+
 package require Device
 package require DeviceRole 1.0
 package require xBlt
@@ -132,7 +137,7 @@ itcl::class SweepController {
     if {$dev2 != {}} { set cs2 [$dev2 get_curr] } else {set cs2 0}
 
     put_comment "reset"
-    loop
+    set rh [after idle loop]
     return {}
   }
 
@@ -259,7 +264,7 @@ itcl::class SweepController {
     else {set ch 1}
 
     # if we are near the destination
-    if { [expr {abs([get_scurr]-$dest)}] < [expr {abs($di)}] } {
+    if { [expr {abs([get_scurr]-$dest) < abs($di)}] } {
       set rate 0
       set c $dest
       set msg "sweep finished at $dest"
@@ -288,14 +293,14 @@ itcl::class SweepController {
     set rate [expr abs($rate_)]
     set dest $dest_
     set msg "sweep to $dest A at $rate A/s"
-    loop
+    set rh [after idle loop]
     return
   }
 
   method sweep_stop {} {
     set rate 0
     set msg "sweep stoped"
-    loop
+    set rh [after idle loop]
     return
   }
 
