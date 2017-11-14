@@ -2,11 +2,6 @@
 
 # current sweeper with stdin/stdout interface
 
-# Note: there is a loop which is running forever and
-# commands which are called by user.
-# It can be a collision with device access (by measurement commands)
-# but is should be solved by propper locking
-
 package require Device
 package require DeviceRole 1.0
 package require xBlt
@@ -44,12 +39,18 @@ itcl::class SweepController {
   variable dev2 {}; # device driver -- 2nd chan
   variable gdev {}; # gauge device driver
   variable rh   {}; # ramping loop handler
-  variable cs1;     # set current - 1st chan
-  variable cs2;     # set current - 2nd chan
+  variable cs1 0;     # set current - 1st chan
+  variable cs2 0;     # set current - 2nd chan
+  variable cm1 0;     # measured current - 1st chan
+  variable cm2 0;     # measured current - 2nd chan
+  variable vm1 0;     # measured voltage - 1st chan
+  variable vm2 0;     # measured voltage - 2nd chan
+  variable st {};     # device state
+  variable mval {};   # measured value
   variable dt   0;  # actual time from last current setting
   variable rate 0;
   variable dest 0;
-  variable msg "";  # message to be looged into database on the next step
+  variable msg "";  # message to be logged into database on the next step
   variable state 0; # set to 1 to measure current on the next step
 
   # see options:
@@ -74,7 +75,7 @@ itcl::class SweepController {
   # Return list of commands which can be run from stdin.
   method list {} { return\
     {list sweep sweep_stop reset
-     get_scurr get_mcurr get_volt get_stat
+     get_scurr get_mcurr get_volt get_stat get_mval
      db_value db_comment} }
 
   ######################################
@@ -121,25 +122,6 @@ itcl::class SweepController {
     if {$dev2 != {}} { $dev2 unlock }
   }
 
-  ######################################
-  # reset devices and start main loop
-  method reset {} {
-
-
-    $dev1 set_ovp $max_volt
-    $dev1 cc_reset
-    if {$dev2 != {}} {
-      $dev2 set_ovp $max_volt
-      $dev2 cc_reset
-    }
-
-    set cs1 [ $dev1 get_curr ]
-    if {$dev2 != {}} { set cs2 [$dev2 get_curr] } else {set cs2 0}
-
-    put_comment "reset"
-    set rh [after idle loop]
-    return {}
-  }
 
   ######################################
   ### DB functions
@@ -155,12 +137,7 @@ itcl::class SweepController {
   # put value into the database (internal use)
   method put_value {} {
     if { $db_dev != {} && $db_val != {}} {
-
-      # do measurement if needed
-      if {$gdev != {}} { set gval [ $gdev get ] }\
-      else { set gval {} }
-
-      $db_dev cmd "put $db_val now [get_mcurr] [get_scurr] [get_volt] $gval"
+      $db_dev cmd "put $db_val now [get_mcurr] [get_scurr] [get_volt] [get_mval]"
       $db_dev cmd "sync"
     }
   }
@@ -190,55 +167,70 @@ itcl::class SweepController {
   }
 
   # get measured current (sum for both channels)
-  method get_mcurr {} {
-    set c1 [ $dev1 get_curr ]
-    if {$dev2 != {}} {
-      set c2 [$dev2 get_curr]
-      set c1 [expr {$c1 + $c2}]
-    }
-    return $c1
-  }
+  method get_mcurr {} { return [expr {$cm1 + $cm2}] }
 
-  # get previously set current (sum for both channels)
-  method get_scurr {} {
-    return [expr $cs1+$cs2]
-  }
+  # get current (sum for both channels)
+  method get_scurr {} { return [expr {$cs1 + $cs2}] }
 
   # get voltage (1st channel only)
-  method get_volt {} { return [ $dev1 get_volt ]}
+  method get_volt {} { return $vm1 }
 
-  # get stat (1st channel only)
-  method get_stat {} { return [ $dev1 get_stat ]}
+  # get stat
+  method get_stat {} { return $st }
 
+  # get measured value
+  method get_mval {} { return $mval }
 
   ######################################
   # Main loop
 
   method loop {} {
 
-    after cancel $rh
+    # Errors in the loop can not go to the interface
+    # Now I ignore them, then it may be useful
+    # to catch them by bgerror and return as a program status
 
-    # measure and record value
-    if {!$skip || $state==1 || $msg != {}} { put_value }
-    set state 0
+    catch {
+      after cancel $rh
 
-    if {$msg != {}} {put_comment $msg}
-    set msg {}
+      # measure all values
+      set cm1 [ $dev1 get_curr ]
+      if {$dev2 != {}} {
+        set cm2 [$dev2 get_curr]
+      }
+      set vm1 [ $dev1 get_curr ]
+      if {$dev2 != {}} {
+        set vm2 [$dev2 get_curr]
+      }
+      set st [ $dev1 get_stat ]
+      if {$dev2 != {}} {
+        set st "$st:[ $dev2 get_stat ]"
+      }
+      # do measurement if needed
+      if {$gdev != {}} { set mval [ $gdev get ] }\
+      else { set mval {} }
 
-    # stop ramping if the real current jumped outside the tolerance
-    set cm1 [ $dev1 get_curr ]
-    if {$dev2 != {}} { set cm2 [$dev2 get_curr] } else {set cm2 0}
-    set tolerance  [expr 100*$min_i_step]
-    set tolerance2 [expr 100*$min_i_step2]
-    if { abs($cm1-$cs1) > $tolerance ||\
-         abs($cm2-$cs2) > $tolerance2} {
-      set cs1 $cm1
-      set cs2 $cm2
-      set rate 0
-        put_comment "current jump to [get_scurr]"
+      if {!$skip || $state==1 || $msg != {}} { put_value }
+      set state 0
+
+      if {$msg != {}} {put_comment $msg}
+      set msg {}
+
+      # stop ramping if the real current jumped outside the tolerance
+      set cm1 [ $dev1 get_curr ]
+      if {$dev2 != {}} { set cm2 [$dev2 get_curr] } else {set cm2 0}
+      set tolerance  [expr 100*$min_i_step]
+      set tolerance2 [expr 100*$min_i_step2]
+      if { abs($cm1-$cs1) > $tolerance ||\
+           abs($cm2-$cs2) > $tolerance2} {
+        set cs1 $cm1
+        set cs2 $cm2
+        set rate 0
+          put_comment "current jump to [get_scurr]"
+      }
+
+      if {$rate > 0} { step }
     }
-
-    if {$rate > 0} { step }
 
     set rh [after [expr int($tstep*1000)] "$this loop"]
   }
@@ -264,7 +256,7 @@ itcl::class SweepController {
     else {set ch 1}
 
     # if we are near the destination
-    if { [expr {abs([get_scurr]-$dest) < abs($di)}] } {
+    if { [expr {abs([get_scurr]-$dest)}] < [expr {abs($di)}] } {
       set rate 0
       set c $dest
       set msg "sweep finished at $dest"
@@ -287,20 +279,42 @@ itcl::class SweepController {
   }
 
   ######################################
-  # sweep control commands
+  # control commands
+
+  method reset {} {
+    after cancel $rh
+
+    $dev1 set_ovp $max_volt
+    $dev1 cc_reset
+    if {$dev2 != {}} {
+      $dev2 set_ovp $max_volt
+      $dev2 cc_reset
+    }
+
+    set cs1 [ $dev1 get_curr ]
+    if {$dev2 != {}} { set cs2 [$dev2 get_curr] } else {set cs2 0}
+
+    set msg "reset"
+    set rh [after idle $this loop]
+    return {}
+  }
 
   method sweep {dest_ rate_} {
+    if {$rate == $rate_ && $dest==$dest_} {return}
+    after cancel $rh
     set rate [expr abs($rate_)]
     set dest $dest_
     set msg "sweep to $dest A at $rate A/s"
-    set rh [after idle loop]
+    set rh [after idle $this loop]
     return
   }
 
   method sweep_stop {} {
+    if {$rate == 0} {return}
+    after cancel $rh
     set rate 0
     set msg "sweep stoped"
-    set rh [after idle loop]
+    set rh [after idle $this loop]
     return
   }
 
