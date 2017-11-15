@@ -20,11 +20,11 @@ itcl::class Device {
   variable name;   # device name
   variable drv;    # device driver
   variable pars;   # driver parameters
-  variable logfile {}; # log file
 
   # timeouts
   variable lock_timeout    5000; # user locks
   variable io_lock_timeout 5000; # io locks
+  variable log_folder "/var/log/tcl-device";
 
   ####################################################################
   constructor {} {
@@ -52,9 +52,30 @@ itcl::class Device {
       }
     }
     if { $drv eq "" } { error "Can't find device $name in /etc/devices.txt"}
-    set dev [conn_drivers::$drv #auto $pars]
+
+    # create the driver
+    set e [catch {set dev [conn_drivers::$drv #auto $pars]} ]
+
+    # log
+    set do_log [file exists "$log_folder/$name"]
+    if {$do_log} {
+       set ll [open "$log_folder/$name" "a"]
+       puts $ll "[pid] Opened by [info script]"
+       puts $ll "[pid] Driver: $drv"
+       puts $ll "[pid] Parameters: $pars"
+       if {$e} {puts $ll "Error: $::errorInfo\n"}
+       close $ll
+    }
+
+    if {$e} {error $::errorInfo}
   }
   destructor {
+    set do_log [file exists "$log_folder/$name"]
+    if {$do_log} {
+       set ll [open "$log_folder/$name" "a"]
+       puts $ll "[pid] Closed by [info script]"
+       close $ll
+    }
     itcl::delete object $dev
   }
 
@@ -66,15 +87,26 @@ itcl::class Device {
     ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
     set cmd [join $args " "]
-    # log answer
-    if {$logfile!={}} {
-      set ff [open $logfile "a"]
-      puts $ff "$name << $ret"
-      close $ff
+
+    # log command
+    set do_log [file exists "$log_folder/$name"]
+    if {$do_log} {
+       set ll [open "$log_folder/$name" "a"]
+       puts $ll "[pid] << $cmd"
     }
-    set e [catch {set ret [$dev write [join $args " "]]}]
+
+    # run the command
+    set e [catch {set ret [$dev write $cmd]}]
+
+    # log response (errors if any)
+    if {$do_log} {
+       if {$e} {puts $ll "[pid] Error: $::errorInfo"}
+       close $ll
+    }
+
     # unlock device before throwing an error
     ::unlock io_$name
+
     if {$e} {error $::errorInfo}
     return {}
   }
@@ -90,22 +122,26 @@ itcl::class Device {
     set cmd [join $args " "]
 
     # log command
-    if {$logfile!={}} {
-      set ff [open $logfile "a"]
-      puts $ff "$name << $cmd"
+    set do_log [file exists "$log_folder/$name"]
+    if {$do_log} {
+       set ll [open "$log_folder/$name" "a"]
+       puts $ll "[pid] << $cmd"
     }
+
     # run the command
     set e [catch {set ret [$dev cmd $cmd]}]
 
+    # log
+    if {$do_log} {
+       if {$e} {puts $ll "[pid] Error: $::errorInfo\n"}\
+       elseif {$ret != {}} {puts $ll "[pid] >> $ret"}
+       close $ll
+    }
+
     # unlock device before throwing an error
     ::unlock io_$name
-    if {$e} {error $::errorInfo}
 
-    # log answer
-    if {$logfile!={}} {
-      if {$ret != {}} {puts $ff "$name >> $ret"}
-      close $ff
-    }
+    if {$e} {error $::errorInfo}
     return $ret
   }
   # alias
@@ -118,18 +154,23 @@ itcl::class Device {
     ::lock_wait $name    $lock_timeout 1
     ::lock_wait io_$name $io_lock_timeout 0
     ::lock io_$name
+
+    # run the command
     set e [catch {set ret [$dev read]}]
+
+    # log error or answer
+    set do_log [file exists "$log_folder/$name"]
+    if {$do_log} {
+       set ll [open "$log_folder/$name" "a"]
+       if {$e} {puts $ll "[pid] Error: $::errorInfo\n"}\
+       elseif {$ret != {}} {puts $ll "[pid] >> $ret"}
+       close $ll
+    }
 
     # unlock device before throwing an error
     ::unlock io_$name
-    if {$e} {error $::errorInfo}
 
-    # log answer
-    if {$logfile!={}} {
-      set ff [open $logfile "a"]
-      puts $ff "$name >> $ret"
-      close $ff
-    }
+    if {$e} {error $::errorInfo}
     return $ret
   }
 
@@ -142,8 +183,5 @@ itcl::class Device {
   }
   method unlock {} {
     ::unlock $name
-  }
-  method set_logfile {f} {
-    set logfile $f
   }
 }

@@ -24,13 +24,16 @@ puts [generator cmd "*idn?"]
 ```
 
 Note that library itself does not know anything about commands used by certain
-devices, it just provides connection.
+devices, it just provides connection. For the next layer see DeviceRole library.
 
-Library provides IO locking (one device can be used by a few programs
-without collisions) and optional high-level locking (one program can lock
-a device for a long time).
+Library provides IO locking (one device can be used by a few programs or
+by severel threads in one program without collisions) and optional
+high-level locking (one program can lock a device for a long time).
 
-Library provides logging of all commands and answers.
+Library provides logging of all device communications: if there is a file
+`/var/log/tcl-device/<name>` then all communication with the device
+<name> is appended to this file. This allows to start/stop logging
+without restarting and modifing programs.
 
 ## Interface (see `Device/device.tcl`)
 ---
@@ -41,7 +44,6 @@ Library provides logging of all commands and answers.
                  command is run. If device is locked, other communications with this
                  device generate an error after some timeout
 * <name> unlock -- Unlock the device.
-* <name> set_logfile <f> -- Set file for logging. Default is "", no logging.
 
 In case of error a tcl error is called. Use catch to process it.
 
@@ -51,11 +53,11 @@ In case of error a tcl error is called. Use catch to process it.
 
 * gpib_prologix -- GPIB device connected through Prologix gpib2eth converter.
 
-  Parameters: <hostname>:<gpib address>
+  Parameters: `<hostname>:<gpib address>`
 
 * lxi_scpi_raw -- LXI device connected via ethernet (SCPI raw connection via port 5025).
 
-  Parameters: <hostname>
+  Parameters: `<hostname>`
 
 * usbtcm -- devices controlled by usbtcm driver
 
