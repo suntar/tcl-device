@@ -57,25 +57,12 @@ itcl::class Device {
     set e [catch {set dev [conn_drivers::$drv #auto $pars]} ]
 
     # log
-    set do_log [file exists "$log_folder/$name"]
-    if {$do_log} {
-       set ll [open "$log_folder/$name" "a"]
-       puts $ll "[pid] Opened by [info script]"
-       puts $ll "[pid] Driver: $drv"
-       puts $ll "[pid] Parameters: $pars"
-       if {$e} {puts $ll "Error: $::errorInfo\n"}
-       close $ll
-    }
+    do_log "" "Opened by [info script]\n  Driver: $drv\n  Parameters: $pars"
 
     if {$e} {error $::errorInfo}
   }
   destructor {
-    set do_log [file exists "$log_folder/$name"]
-    if {$do_log} {
-       set ll [open "$log_folder/$name" "a"]
-       puts $ll "[pid] Closed by [info script]"
-       close $ll
-    }
+    do_log "" "Closed by [info script]"
     itcl::delete object $dev
   }
 
@@ -89,20 +76,13 @@ itcl::class Device {
     set cmd [join $args " "]
 
     # log command
-    set do_log [file exists "$log_folder/$name"]
-    if {$do_log} {
-       set ll [open "$log_folder/$name" "a"]
-       puts $ll "[pid] << $cmd"
-    }
+    do_log ">>" $cmd
 
     # run the command
     set e [catch {set ret [$dev write $cmd]}]
 
     # log response (errors if any)
-    if {$do_log} {
-       if {$e} {puts $ll "[pid] Error: $::errorInfo"}
-       close $ll
-    }
+    do_log "<<" "" $e
 
     # unlock device before throwing an error
     ::unlock io_$name
@@ -122,21 +102,14 @@ itcl::class Device {
     set cmd [join $args " "]
 
     # log command
-    set do_log [file exists "$log_folder/$name"]
-    if {$do_log} {
-       set ll [open "$log_folder/$name" "a"]
-       puts $ll "[pid] << $cmd"
-    }
+    do_log ">>" $cmd
 
     # run the command
+    set ret {}
     set e [catch {set ret [$dev cmd $cmd]}]
 
-    # log
-    if {$do_log} {
-       if {$e} {puts $ll "[pid] Error: $::errorInfo\n"}\
-       elseif {$ret != {}} {puts $ll "[pid] >> $ret"}
-       close $ll
-    }
+    # log error or answer
+    do_log "<<" $ret $e
 
     # unlock device before throwing an error
     ::unlock io_$name
@@ -156,22 +129,26 @@ itcl::class Device {
     ::lock io_$name
 
     # run the command
+    set ret {}
     set e [catch {set ret [$dev read]}]
 
     # log error or answer
-    set do_log [file exists "$log_folder/$name"]
-    if {$do_log} {
-       set ll [open "$log_folder/$name" "a"]
-       if {$e} {puts $ll "[pid] Error: $::errorInfo\n"}\
-       elseif {$ret != {}} {puts $ll "[pid] >> $ret"}
-       close $ll
-    }
+    do_log "<<" $ret $e
 
     # unlock device before throwing an error
     ::unlock io_$name
 
     if {$e} {error $::errorInfo}
     return $ret
+  }
+
+  method do_log {pref msg {e 0}} {
+    if {[file exists "$log_folder/$name"]} {
+       set ll [open "$log_folder/$name" "a"]
+       if {$e} {puts $ll "[clock seconds] [pid] Error: $::errorInfo\n"}\
+       elseif {$msg != {}} {puts $ll "[clock seconds] [pid] $pref $msg"}
+       close $ll
+    }
   }
 
   ####################################################################
