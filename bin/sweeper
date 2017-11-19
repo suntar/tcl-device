@@ -89,7 +89,6 @@ itcl::class SweepController {
     if {$ps_dev1  == {} } { error "ps_dev1 is empty" }
     set dev1 [DeviceRole $ps_dev1 power_supply]
     $dev1 lock
-    $dev1 set_logfile "/tmp/ps1"
 
     # get device parameters
     set min_i_step [$dev1 cget -min_i_step]
@@ -100,7 +99,6 @@ itcl::class SweepController {
       if {$ps_dev1 == $ps_dev2} {error "same devices for both channels"}
       set dev2 [DeviceRole $ps_dev2 power_supply]
       $dev2 lock
-      $dev2 set_logfile "/tmp/ps2"
 
       set min_i_step2 [$dev2 cget -min_i_step]
       set max_i2 [$dev2 cget -max_i]
@@ -198,9 +196,9 @@ itcl::class SweepController {
       if {$dev2 != {}} {
         set cm2 [$dev2 get_curr]
       }
-      set vm1 [ $dev1 get_curr ]
+      set vm1 [ $dev1 get_volt ]
       if {$dev2 != {}} {
-        set vm2 [$dev2 get_curr]
+        set vm2 [$dev2 get_volt]
       }
       set st [ $dev1 get_stat ]
       if {$dev2 != {}} {
