@@ -288,9 +288,10 @@ itcl::class SweepController {
       $dev2 set_ovp $max_volt
       $dev2 cc_reset
     }
-
     set cs1 [ $dev1 get_curr ]
     if {$dev2 != {}} { set cs2 [$dev2 get_curr] } else {set cs2 0}
+    set dest [get_scurr]
+    set rate 0
 
     set msg "reset"
     set rh [after idle $this loop]
