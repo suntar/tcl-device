@@ -1,0 +1,59 @@
+#!/usr/bin/tclsh
+
+source spp_server_async.tcl
+
+# More complicated async server example:
+# wait command is added which waits for
+# modification of $var and returns it
+
+# The problem is to avoid nested vwait calls,
+# see https://www.tcl.tk/man/tcl/TclCmd/vwait.htm
+
+# Here we use spp_server_async library
+
+itcl::class TestSrv {
+  variable var
+  variable rh {}
+  variable tstep 1.0; # s
+
+  constructor {args} {
+    if {[catch {
+      if {$args != {}} {error "no arguments needed: $args"}
+      reset
+    }]} {spp_server_async::err}
+  }
+
+  method get {} {
+    spp_server_async::ans $var
+  }
+
+  method reset {} {
+    after cancel $rh
+    set var 0
+    set rh [after idle $this loop]
+    spp_server_async::ans {}
+  }
+
+  method wait {} {
+    trace add variable var write "$this on_var_set"
+    return $var
+  }
+
+  method on_var_set {n1 n2 op} {
+    trace remove variable var write "$this on_var_set"
+    spp_server_async::ans $var
+  }
+
+  method loop {} {
+    after cancel $rh
+    # errors in the loop should be ignored!
+    catch {
+      incr var
+      if {$var > 20} {error "value is too high"}
+    }
+    set rh [after [expr int($tstep*1000)] $this loop]
+  }
+}
+
+spp_server_async::list {list get reset wait}
+spp_server_async::run TestSrv {*}$argv

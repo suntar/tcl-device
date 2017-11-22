@@ -1,0 +1,38 @@
+#!/usr/bin/tclsh
+
+source spp_server.tcl
+
+# simple async server example:
+# The counter runs all the time and increases some variable every second.
+# Get command returns its value.
+
+itcl::class TestSrv {
+  variable var
+  variable rh {}
+  variable tstep 1.0; # s
+
+  constructor {} { reset }
+
+  method list {} { return {list get reset} }
+
+  method get {} {return $var}
+
+  method reset {} {
+    after cancel $rh
+    set var 0
+    set rh [after idle $this loop]
+    return {}
+  }
+
+  method loop {} {
+    after cancel $rh
+    # errors in the loop should be ignored!
+    catch {
+      incr var
+      if {$var > 20} {error "value is too high"}
+    }
+    set rh [after [expr int($tstep*1000)] $this loop]
+  }
+}
+
+spp_server::run TestSrv
