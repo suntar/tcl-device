@@ -31,7 +31,7 @@ itcl::class TestSrv {
     after cancel $rh
     set var 0
     set rh [after idle $this loop]
-    spp_server_async::ans {}
+    spp_server_async::ans
   }
 
   # Wait until variable will be set and print it
@@ -53,10 +53,10 @@ itcl::class TestSrv {
   method loop {} {
     after cancel $rh
     # errors in the loop should be ignored!
-    catch {
+    if {[catch {
       incr var
-      if {$var > 20} {error "value is too high"}
-    }
+      if {$var > 20} {spp_server_async::fatal "value is too high"}
+    }]} {spp_server_async::fatal}
     set rh [after [expr int($tstep*1000)] $this loop]
   }
 }

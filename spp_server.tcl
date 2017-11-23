@@ -21,7 +21,7 @@ package require Itcl
 
 namespace eval spp_server {
   set ch  {#}
-  set ver {001}
+  set ver {002}
   set int_type 0
 
   # Extract and print first line of ::errorInfo

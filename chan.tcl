@@ -40,6 +40,12 @@ itcl::class Chan {
   method read {timeout} {
     set stop 0
     set ret {}
+
+    # non-blocking read
+    if {$timeout == 0} {
+      return [::gets $ch]
+    }
+    # we need to wait
     if {$timeout > 0} {
       set dd [after $timeout [list $this on_timeout]]
     }

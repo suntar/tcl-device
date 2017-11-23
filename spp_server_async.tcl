@@ -23,56 +23,102 @@
 ##  - each registered method for interface type 0;
 ##  - cmd method for interface type 1;
 ##  - class constructor.
-## All these methods should prepare the answer and run a command
-##   spp_server_async::answer <text>
-## All these methods should catch errors and then run
-##   spp_server_async::err
-## This commands can be run even after returning from a method!
+## All these methods should prepare the answer and run one of
+##   spp_server_async::ans <text>
+##   spp_server_async::err <text>
+## This commands can be run even after returning from a method, but only ones!
+## In case of fatal error method can run spp_server_async::fatal <text> and
+## stop the server.
 
 package require Itcl
 
 namespace eval spp_server_async {
   set ch  {#}
-  set ver {001}
+  set ver {002}
   set int_type 0
   set srv {}
   set lst {}
+  set cnt_cmd 0;  # command counter
+  set cnt_ans -1; # answer/error counter (answer from server constructor will be 0)
 
-  # Extract and print first line of ::errorInfo
-  proc err {} {
-    set e $::errorInfo
-    set n [string first "\n" $e]
-    if {n>0} { set e [string range $e 0 [expr $n-1]]}
-    puts "${spp_server_async::ch}Error: $e"
-    # we are ready to read new commands
+  ##########################################################
+  # Process an error.
+  # If message is empty use $::errorInfo
+  proc err {{msg {}}} {
+
+    # increase answer counter and check that it matches the command counter:
+    incr spp_server_async::cnt_ans
+    if {$spp_server_async::cnt_ans != $spp_server_async::cnt_cmd} {
+      fatal_msg "Some interactive method in SPP server $spp_server_async::srv generates two answers/errors."
+    }
+
+    # if msg is not defined use errorInfo
+    if {$msg == {}} {set msg $::errorInfo}
+
+    # Extract and print first line of msg
+    set n [string first "\n" $msg]
+    if {$n>0} { set msg [string range $msg 0 [expr $n-1]]}
+    puts "${spp_server_async::ch}Error: $msg"
+
+    # we want to exit after an error from server constructor:
+    if {$spp_server_async::cnt_ans == 0} {exit}
+
+    # we are ready to read new commands:
     fileevent stdin readable "spp_server_async::on_read"
   }
 
-  # Print answer
-  proc ans {text} {
+  ##########################################################
+  # Process a fatal error.
+  # If message is empty use $::errorInfo
+  proc fatal {{msg {}}} {
+    # if msg is not defined use errorInfo
+    if {$msg == {}} {set msg $::errorInfo}
+
+    # Extract and print first line of msg
+    set n [string first "\n" $msg]
+    if {$n>0} { set msg [string range $msg 0 [expr $n-1]]}
+    puts "${spp_server_async::ch}Fatal: $msg"
+
+    exit
+  }
+
+  ##########################################################
+  # Process an answer.
+  proc ans {{text {}}} {
+    # increase answer counter and check that it matches the command counter:
+    incr spp_server_async::cnt_ans
+    if {$spp_server_async::cnt_ans != $spp_server_async::cnt_cmd} {
+      fatal "Some interactive method in SPP server $spp_server_async::srv generates two answers/errors."
+    }
+
+    # protect special symbols in the begginning of the line
     if {$text ne {}} {
-      # protect special symbols in the begginning of the line
       regsub -all -line "^$spp_server_async::ch" $text "$spp_server_async::ch$spp_server_async::ch" text
       set res {}
       append res $text
       puts $res
     }
+
+    # print answer:
     puts "${spp_server_async::ch}OK"
-    # we are ready to read new commands
+
+    # we are ready to read new commands:
     fileevent stdin readable "spp_server_async::on_read"
   }
 
+  ##########################################################
   # Reading a command
   proc on_read {} {
     # clear the fileevent - we do not want to run two commands in parallel
     fileevent stdin readable ""
     gets stdin line
+    incr spp_server_async::cnt_cmd
 
     # connection is closed:
     if {[eof stdin]} {itcl::delete object $spp_server_async::srv; exit}
 
     # skip empty lines:
-    if {$line == {}} { answer {}; return }
+    if {$line == {}} { ans {}; return }
 
     ## interface type 0
 
@@ -93,9 +139,11 @@ namespace eval spp_server_async {
     }]} { err }
   }
 
+  ##########################################################
   # register list of valid commands
   proc list {args} { set spp_server_async::lst {*}$args }
 
+  ##########################################################
   # main loop
   proc run {srv_class args} {
     # configure stdin
