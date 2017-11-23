@@ -4,77 +4,83 @@
 
 variable lock_folder "/tmp/tcl_device_locks"
 
-proc lock {name} {
-  # create folder for locks if needed
+proc lock {name timeout {only_others 0}} {
+  # check if lock folder exists:
   if { ! [file exists $::lock_folder] } {
-    file mkdir $::lock_folder
-    file attributes $::lock_folder -permissions 0777
+    error "lock folder does not exist: $::lock_folder"
   }
-  # set new lock (use unique tmp file and rename to avoid collisions)
-  set fname "$::lock_folder/$name"
-  set i [expr int(1000*rand())]
-  while {[file exists [set ftmp $::lock_folder/tmp_${name}_${i}]]} {incr i}
 
-  set f [open $ftmp w]
-  puts $f [pid]
-  puts $f [info script]
-  close $f
-  file rename -force $ftmp $fname
+  # set some parameters
+  set fname "$::lock_folder/$name"; #lock file name
+  set t 0;    # waiting time, ms
+  set dt 100; # delay, ms
+
+  # try to grab lock
+  while {[catch {set fo [open $fname {WRONLY CREAT EXCL}]}]} {
+
+    # try to find who grabbed the lock
+    set p {}; # pid
+    set n {}; # name
+    catch {
+      set fl [open $fname {RDONLY}]
+      set p [gets $fl]
+      set n [gets $fl]
+      close $fl
+    }
+
+    # if process which did this lock does not exist now:
+    if { $p!={} && ! [file isdirectory "/proc/$p"] } {
+      # try to delete lock file
+      if {[catch {file delete $fname}]} {
+        error "Can't delete expired lock file (do it manually): $fname" }
+    }
+
+    # if it is our lock and $only_others==1 - just return
+    if {$only_others && $p == [pid]} { return }
+
+    # check timeout
+    if {$t > $timeout} {
+      if {$p == [pid]} {error "$name is locked by myself ($n: $p)"}\
+      else {error "$name is locked by $n: $p"}
+    }
+
+    set t [expr $t+$dt]
+    after $dt
+  }
+
+  # We have the lock! Put some information in the file
+  puts $fo [pid]
+  puts $fo [info script]
+  close $fo
+  return
 }
 
 proc unlock {name} {
-  if { ! [file exists $::lock_folder] } { return }
-  set fname "$::lock_folder/$name"
-  # We do not want to check that file exists, because
-  # it can disappear before deleting.
-  # Instead we just delete it and ignore possible errors.
-  catch { file delete $fname }
+  if { ! [file exists $::lock_folder] } {
+    error "lock folder does not exist: $::lock_folder"
+  }
+  if {[catch { file delete "$::lock_folder/$name" }]} {
+    error "error unlocking $name"
+  }
 }
 
-# Wait for a lock.
-# If only_others==1 then wait only for locks set up by other processes
-# Note that in tcl one process can make io collisions.
-proc lock_wait {name timeout {only_others 0}} {
-  #create a unique global var
-  set msgvar lock_msg_[expr int(1e10*rand())]
-  global $msgvar
-  set h [after idle lock_check $name $timeout $only_others $msgvar]
-  vwait $msgvar
-  after cancel $h
-  set msg [set $msgvar]
-  unset $msgvar
-  if {$msg!={}} {error $msg}
-}
+proc check_lock {name {only_others 0}} {
 
-proc lock_check {name timeout only_others msgvar} {
-  upvar $msgvar msg
-  # no lock folder
-  if { ! [file exists $::lock_folder] } { return }
-
-  set fname "$::lock_folder/$name"
-  # return if we can't read process id and script name from file
-  if [ catch {
-    set f [open $fname r]
+  # try to find who grabbed the lock
+  set p {}; # pid
+  set n {}; # name
+  if {![catch {
+    set fl [open $fname {RDONLY}]
     set p [gets $f]
     set n [gets $f]
-    close $f
-  }] { set msg {}; return}
-
-  # return if process which did this lock does not exist now
-  if { ! [file isdirectory "/proc/$p"] } {set msg {}; return }
-
-  # return if we want to see only other's lock and
-  # existing lock is from our process
-  if {$only_others && $p == [pid]} {set msg {}; return }
-
-  # check timeout
-  if {$timeout <= 0} {
-    if {$p == [pid]} {set msg "$name is locked by myself ($n: $p)"}\
-    else {set msg "$name is locked by $n: $p"}
-    return
+    close $fl
+  }]} {
+    # if it is our lock and $only_others==1 - just return
+    if {$only_others && $p == [pid]} { return }
+    # if there is a lock - produce an error
+    if {$p == [pid]} {error "$name is locked by myself ($n: $p)"}\
+    else {error "$name is locked by $n: $p"}
   }
-
-  set dt 100
-  after $dt lock_check $name [expr {$timeout-$dt}] $only_others $msgvar
+  return
 }
 

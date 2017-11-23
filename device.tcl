@@ -70,9 +70,8 @@ itcl::class Device {
   # run command, read response if needed
   method write {args} {
     update
-    ::lock_wait $name    $lock_timeout 1
-    ::lock_wait io_$name $io_lock_timeout 0
-    ::lock io_$name
+    ::lock_check $name $lock_timeout 1
+    ::lock io_$name $io_lock_timeout 0
     set cmd [join $args " "]
 
     # log command
@@ -95,9 +94,8 @@ itcl::class Device {
   # run command, read response if needed
   method cmd {args} {
     update
-    ::lock_wait $name    $lock_timeout 1
-    ::lock_wait io_$name $io_lock_timeout 0
-    ::lock io_$name
+    ::lock_check $name $lock_timeout 1
+    ::lock io_$name $io_lock_timeout 0
 
     set cmd [join $args " "]
 
@@ -124,9 +122,8 @@ itcl::class Device {
   # read response
   method read {} {
     update
-    ::lock_wait $name    $lock_timeout 1
-    ::lock_wait io_$name $io_lock_timeout 0
-    ::lock io_$name
+    ::lock_check $name $lock_timeout 1
+    ::lock io_$name $io_lock_timeout 0
 
     # run the command
     set ret {}
@@ -155,8 +152,7 @@ itcl::class Device {
   # High-level lock commands.
   # If you want to grab the device for a long time, use this
   method lock {} {
-    ::lock_wait $name $lock_timeout 1
-    ::lock $name
+    ::lock $name 0 1
   }
   method unlock {} {
     ::unlock $name
