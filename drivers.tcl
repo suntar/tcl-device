@@ -34,14 +34,16 @@ itcl::class gpib_prologix {
   # write to device without reading answer
   method write {v} {
     set dev [::socket $host 1234]
+    ::fconfigure $dev -blocking false -buffering line
     set_addr $dev
-    puts $dev "$v\n"
+    ::puts $dev "$v\n"
     ::close $dev
     return
   }
   # read from device
   method read {} {
     set dev [::socket $host 1234]
+    ::fconfigure $dev -blocking false -buffering line
     set_addr $dev
     set ret [gets_timeout $dev $timeout]
     ::close $dev
@@ -50,8 +52,9 @@ itcl::class gpib_prologix {
   # write and then read
   method cmd {v} {
     set dev [::socket $host 1234]
+    ::fconfigure $dev -blocking false -buffering line
     set_addr $dev
-    puts $dev "$v\n"
+    ::puts $dev "$v\n"
     if [regexp {\?} $v] { set ret [gets_timeout $dev $timeout] }\
     else { set ret ""}
     ::close $dev
@@ -103,14 +106,15 @@ itcl::class lxi_scpi_raw {
   constructor {pars} {
     set host $pars
     set dev [::socket $host 5025]
+    ::fconfigure $dev -blocking false -buffering line
   }
   # close device
   destructor {
-    close $dev
+    ::close $dev
   }
   # write to device without reading answer
   method write {v} {
-    puts $dev $v
+    ::puts $dev $v
   }
   # read from device
   method read {} {
@@ -119,7 +123,7 @@ itcl::class lxi_scpi_raw {
   # write and then read
   method cmd {v} {
     set cmd $v
-    puts $dev $cmd
+    ::puts $dev $cmd
     if [regexp {\?} $cmd] { return [gets_timeout $dev $timeout] }\
     else {return ""}
   }

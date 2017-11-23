@@ -16,6 +16,8 @@ itcl::class spp_client {
 
   constructor {prog_name} {
     set conn [::open "| $prog_name" RDWR]
+    ::fconfigure $conn -blocking false -buffering line
+
     if [eof $conn] {
       error "$prog_name: unknown protocol"}
     set l [gets_timeout $conn $open_timeout]
