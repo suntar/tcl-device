@@ -64,7 +64,7 @@ proc unlock {name} {
   }
 }
 
-proc check_lock {name {only_others 0}} {
+proc lock_check {name {only_others 0}} {
 
   # try to find who grabbed the lock
   set p {}; # pid

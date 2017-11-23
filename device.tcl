@@ -22,7 +22,6 @@ itcl::class Device {
   variable pars;   # driver parameters
 
   # timeouts
-  variable lock_timeout    5000; # user locks
   variable io_lock_timeout 5000; # io locks
   variable log_folder "/var/log/tcl-device";
 
@@ -70,7 +69,7 @@ itcl::class Device {
   # run command, read response if needed
   method write {args} {
     update
-    ::lock_check $name $lock_timeout 1
+    ::lock_check $name 1
     ::lock io_$name $io_lock_timeout 0
     set cmd [join $args " "]
 
@@ -94,7 +93,7 @@ itcl::class Device {
   # run command, read response if needed
   method cmd {args} {
     update
-    ::lock_check $name $lock_timeout 1
+    ::lock_check $name 1
     ::lock io_$name $io_lock_timeout 0
 
     set cmd [join $args " "]
@@ -122,7 +121,7 @@ itcl::class Device {
   # read response
   method read {} {
     update
-    ::lock_check $name $lock_timeout 1
+    ::lock_check $name 1
     ::lock io_$name $io_lock_timeout 0
 
     # run the command
