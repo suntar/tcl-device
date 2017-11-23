@@ -12,14 +12,13 @@ itcl::class spp_client {
   variable ch
   variable ver
   variable open_timeout 5000
-  variable write_timeout 1000
   variable read_timeout -1
 
   constructor {prog_name} {
-    set conn [Chan #auto [::open "| $prog_name" RDWR] $prog_name]
-    if [$conn eof] {
+    set conn [::open "| $prog_name" RDWR]
+    if [eof $conn] {
       error "$prog_name: unknown protocol"}
-    set l [$conn read $open_timeout]
+    set l [gets_timeout $conn $open_timeout]
     if {![regexp {^(.)SPP([0-9]+)$} $l l ch ver]} {
       error "$prog_name: unknown protocol"}
     if {$ver < 002} {
@@ -30,29 +29,24 @@ itcl::class spp_client {
   }
 
   destructor {
-    itcl::delete object $conn
+    ::close $conn
   }
 
   # write command, read response until #OK or #Error line
   method cmd {c} {
-    write $c
+    ::puts $conn $c
     read
   }
 
   # separate commands for reading and writing
   method write {c} {
-    # check for unreaded messages
-    $conn write $c $write_timeout
+    ::puts $conn $c
   }
 
   method read {} {
-    on_read $read_timeout
-  }
-
-  method on_read {timeout} {
     set ret {}
-    while {![$conn eof]} {
-      set l [$conn read $timeout]
+    while {![eof $conn]} {
+      set l [gets_timeout $conn $read_timeout]
       if { [regexp "^${ch}${ch}" $l] } { set l [string range $l 1 end] }\
       else {
         if { [regexp -nocase "^${ch}Error: (.*)\$" $l e1 e2] } { error $e2 }

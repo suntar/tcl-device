@@ -25,36 +25,36 @@ itcl::class gpib_prologix {
   }
   # set address before any operation
   method set_addr {dev} {
-    $dev write "++addr" $timeout
-    set a [$dev read $timeout]
+    puts $dev "++addr"
+    set a [gets_timeout $dev $timeout]
     if { $a != $gpib_addr } {
-      $dev write "++addr $gpib_addr" $timeout
+      puts $dev "++addr $gpib_addr"
     }
   }
   # write to device without reading answer
   method write {v} {
-    set dev [Chan #auto [::socket $host 1234] $host]
+    set dev [::socket $host 1234]
     set_addr $dev
-    $dev write "$v\n" $timeout
-    itcl::delete object $dev
+    puts $dev "$v\n"
+    ::close $dev
     return
   }
   # read from device
   method read {} {
-    set dev [Chan #auto [::socket $host 1234] $host]
+    set dev [::socket $host 1234]
     set_addr $dev
-    set ret [$dev read $timeout]
-    itcl::delete object $dev
+    set ret [gets_timeout $dev $timeout]
+    ::close $dev
     return $ret
   }
   # write and then read
   method cmd {v} {
-    set dev [Chan #auto [::socket $host 1234] $host]
+    set dev [::socket $host 1234]
     set_addr $dev
-    $dev write "$v\n" $timeout
-    if [regexp {\?} $v] { set ret [$dev read $timeout] }\
+    puts $dev "$v\n"
+    if [regexp {\?} $v] { set ret [gets_timeout $dev $timeout] }\
     else { set ret ""}
-    itcl::delete object $dev
+    ::close $dev
     return $ret
   }
 }
@@ -102,25 +102,25 @@ itcl::class lxi_scpi_raw {
   # open device
   constructor {pars} {
     set host $pars
-    set dev [Chan #auto [::socket $host 5025] $host]
+    set dev [::socket $host 5025]
   }
   # close device
   destructor {
-    itcl::delete object $dev
+    close $dev
   }
   # write to device without reading answer
   method write {v} {
-    $dev write $v $timeout
+    puts $dev $v
   }
   # read from device
   method read {} {
-    return [$dev read $timeout]
+    return [gets_timeout $dev $timeout]
   }
   # write and then read
   method cmd {v} {
     set cmd $v
-    $dev write $cmd $timeout
-    if [regexp {\?} $cmd] { return [$dev read $timeout] }\
+    puts $dev $cmd
+    if [regexp {\?} $cmd] { return [gets_timeout $dev $timeout] }\
     else {return ""}
   }
 }
