@@ -23,9 +23,9 @@ itcl::class spp_client {
     set l [gets_timeout $conn $open_timeout]
     if {![regexp {^(.)SPP([0-9]+)$} $l l ch ver]} {
       error "$prog_name: unknown protocol"}
-    if {$ver < 002} {
-      error "$prog_name: too old protocol version"}
-    if {$ver != 002} {
+
+    # this client should work with 001 and 002 versions
+    if {$ver != 002 && $ver != 001} {
       error "$prog_name: unknown protocol version"}
     read
   }
