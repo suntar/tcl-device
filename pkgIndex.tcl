@@ -3,7 +3,7 @@
 
 set _name    Device
 set _version 1.6
-set _files   {spp_client spp_server device drivers chan locking}
+set _files   {spp_client spp_server spp_server_async device drivers chan locking}
 
 set _pcmd {}
 foreach _f $_files { lappend _pcmd "source [file join $dir $_f.tcl]" }
