@@ -26,9 +26,17 @@
 ## All these methods should prepare the answer and run one of
 ##   spp_server_async::ans <text>
 ##   spp_server_async::err <text>
-## This commands can be run even after returning from a method, but only ones!
+## This commands can be run even after returning from a method, but only once!
+##
 ## In case of fatal error method can run spp_server_async::fatal <text> and
-## stop the server.
+## stop the server (now it is not fully supported).
+##
+## There is a function
+##   spp_server_async::try <script>
+## which runs a script, gets returned value or error, then
+## executes spp_server_async::err or spp_server_async::ans
+
+
 
 package require Itcl
 
@@ -104,6 +112,20 @@ namespace eval spp_server_async {
 
     # we are ready to read new commands:
     fileevent stdin readable "spp_server_async::on_read"
+  }
+
+  ##########################################################
+  ## Run script, get returned value or error, then
+  ## execute spp_server_async::err or spp_server_async::ans
+  proc try {script} {
+    if {[catch {
+      set ret [exec $proc]
+    }]} {
+      spp_server_async::err
+    }\
+    else {
+      spp_server_async::ans $ret
+    }
   }
 
   ##########################################################
