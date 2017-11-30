@@ -35,14 +35,14 @@ itcl::class spp_client {
   }
 
   # write command, read response until #OK or #Error line
-  method cmd {c} {
-    ::puts $conn $c
+  method cmd {args} {
+    ::puts $conn [join $args " "]
     read
   }
 
   # separate commands for reading and writing
-  method write {c} {
-    ::puts $conn $c
+  method write {args} {
+    ::puts $conn [join $args " "]
   }
 
   method read {} {
