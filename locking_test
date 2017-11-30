@@ -2,10 +2,10 @@
 
 source locking.tcl
 
-puts "wait for lock..."
-lock name1 1000
-puts "locking is done, waiting 10s..."
-after 10000
+puts "wait for lock (4s timeout)..."
+lock name1 4000 0
+puts "locking is done, waiting 8s..."
+after 8000
 puts "do unlock..."
 unlock name1
 puts "ok"
