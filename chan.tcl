@@ -15,7 +15,7 @@ proc gets_timeout {chan timeout} {
     if {$line != {}} {return $line}
 
     if {!$inf} {
-      if {$timeout <= 0} {error "read timeout"}
+      if {$timeout <= 0} {error "Read timeout"}
     }
 
     if {$dt < 100 } {
@@ -42,7 +42,7 @@ proc gets_timeout_async {chan timeout} {
   vwait ::chan_err($chan)
   fileevent $chan readable {}
   if {$timeout >= 0} {after cancel $dd;}
-  if {$::chan_err($chan)} { error "Read timeout: $name" }
+  if {$::chan_err($chan)} { error "Read timeout" }
 
   return $::chan_ret($chan)
 }
