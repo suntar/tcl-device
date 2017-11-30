@@ -2,8 +2,10 @@
 
 source locking.tcl
 
+set async 1
+
 puts "wait for lock (4s timeout)..."
-lock name1 4000 0
+lock name1 4000 0 1
 puts "locking is done, waiting 8s..."
 after 8000
 puts "do unlock..."

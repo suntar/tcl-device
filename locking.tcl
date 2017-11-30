@@ -3,27 +3,58 @@
 ### Files contain PID of creator and valid while it is running.
 
 variable lock_folder "/tmp/tcl_device_locks"
+variable lock_status 0
 
-proc lock {name timeout {only_others 0}} {
+proc lock {name timeout {only_others 0} {async 0}} {
+  if {$async} {
+    after idle "lock_ $name $timeout $only_others $async"
+    vwait ::lock_status
+    if {$::lock_status} {error $::errorInfo}
+  }\
+  else {
+    lock_ $name $timeout $only_others $async
+  }
+  return
+}
+
+proc lock_ {name timeout only_others async} {
   # check if lock folder exists:
   if { ! [file exists $::lock_folder] } {
-    error "lock folder does not exist: $::lock_folder" }
+    if {$async} {set ::lock_status 1}
+    error "lock folder does not exist: $::lock_folder"
+  }
 
   # set some parameters
   set fname "$::lock_folder/$name"; #lock file name
   set dt 100; # delay, ms
 
-  # try to grab lock
-  while {[catch {set fo [open $fname {WRONLY CREAT EXCL}]}]} {
-    lock_check $name $only_others [expr $timeout<0]
-    set timeout [expr $timeout-$dt]
-    after $dt
+  if {$async==0} {
+    # In sync version just try to grab lock in a cycle
+    while {[catch {set fo [open $fname {WRONLY CREAT EXCL}]}]} {
+      lock_check $name $only_others [expr $timeout<0]
+      set timeout [expr $timeout-$dt]
+      after $dt
+    }
+  }\
+  else {
+    # In async version try to grab lock once and recursively run lock_ again if needed
+    if {[catch {set fo [open $fname {WRONLY CREAT EXCL}] }]} {
+      if {[catch {lock_check $name $only_others [expr $timeout<0] }]} {
+        set ::lock_status 1
+      }\
+      else {
+        after $dt "lock_ $name [expr $timeout-$dt] $only_others $async"
+      }
+      return
+    }
   }
-
   # We have the lock! Put some information in the file
   puts $fo [pid]
   puts $fo [info script]
   close $fo
+
+  # for vwait in async version
+  if {$async} {set ::lock_status 0}
 }
 
 
