@@ -35,20 +35,20 @@ proc gets_timeout_async {chan timeout} {
   set ::chan_err($chan) 0
   set ::chan_ret($chan) {}
 
-  fileevent $ch readable [list $this chan_on_read]
+  fileevent $chan readable "chan_on_read $chan"
   if {$timeout >= 0} {
-     set dd [after $timeout [list $this chan_on_timeout]] }
+     set dd [after $timeout "chan_on_timeout $chan"] }
 
   vwait ::chan_err($chan)
-  fileevent $ch readable {}
-  after cancel $dd;
+  fileevent $chan readable {}
+  if {$timeout >= 0} {after cancel $dd;}
   if {$::chan_err($chan)} { error "Read timeout: $name" }
 
-  return $::chan_ret{$chan}
+  return $::chan_ret($chan)
 }
 
 proc chan_on_read {chan} {
-  set ::chan_ret($chan) [::gets $ch];
+  set ::chan_ret($chan) [::gets $chan];
   set ::chan_err($chan) 0
 }
 
