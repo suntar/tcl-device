@@ -66,70 +66,21 @@ itcl::class Device {
   }
 
   ####################################################################
-  # run command, read response if needed
-  method write {args} {
+  ## standard method to run read/write/cmd driver commands
+  method do_cmd {cmd args} {
     update
     ::lock_check $name 1
     ::lock io_$name $io_lock_timeout 0
-    set cmd [join $args " "]
+    set args [join $args " "]
 
     # log command
-    do_log ">>" $cmd
+    do_log "$cmd>>" $args
 
     # run the command
-    set e [catch {set ret [$dev write $cmd]}]
+    set e [catch {set ret [$dev $cmd $args]}]
 
-    # log response (errors if any)
-    do_log "<<" "" $e
-
-    # unlock device before throwing an error
-    ::unlock io_$name
-
-    if {$e} {error $::errorInfo}
-    return {}
-  }
-
-  ####################################################################
-  # run command, read response if needed
-  method cmd {args} {
-    update
-    ::lock_check $name 1
-    ::lock io_$name $io_lock_timeout 0
-
-    set cmd [join $args " "]
-
-    # log command
-    do_log ">>" $cmd
-
-    # run the command
-    set ret {}
-    set e [catch {set ret [$dev cmd $cmd]}]
-
-    # log error or answer
-    do_log "<<" $ret $e
-
-    # unlock device before throwing an error
-    ::unlock io_$name
-
-    if {$e} {error $::errorInfo}
-    return $ret
-  }
-  # alias
-  method cmd_read {args} { cmd $args }
-
-  ####################################################################
-  # read response
-  method read {} {
-    update
-    ::lock_check $name 1
-    ::lock io_$name $io_lock_timeout 0
-
-    # run the command
-    set ret {}
-    set e [catch {set ret [$dev read]}]
-
-    # log error or answer
-    do_log "<<" $ret $e
+    # log response (and errors if any)
+    do_log "<<" "$ret" $e
 
     # unlock device before throwing an error
     ::unlock io_$name
@@ -138,6 +89,11 @@ itcl::class Device {
     return $ret
   }
 
+  method write {args} { do_cmd write {*}$args }
+  method read  {args} { do_cmd read  {*}$args }
+  method cmd   {args} { do_cmd cmd   {*}$args }
+
+  ####################################################################
   method do_log {pref msg {e 0}} {
     if {[file exists "$log_folder/$name"]} {
        set ll [open "$log_folder/$name" "a"]
