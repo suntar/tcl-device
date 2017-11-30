@@ -119,7 +119,7 @@ namespace eval spp_server_async {
   ## execute spp_server_async::err or spp_server_async::ans
   proc try {script} {
     if {[catch {
-      set ret [exec $proc]
+      set ret [eval $script]
     }]} {
       spp_server_async::err
     }\
