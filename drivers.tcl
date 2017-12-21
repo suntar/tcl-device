@@ -166,7 +166,7 @@ itcl::class tenma_ps {
   # open device
   constructor {pars} {
     set dev [::open $pars RDWR]
-    set del 50
+    set del 250
     fconfigure $dev -blocking false -translation binary
   }
   # close device
@@ -178,7 +178,6 @@ itcl::class tenma_ps {
     set cmd [string toupper $v]
     puts -nonewline $dev $cmd; # no newline!
     flush $dev
-    after $del
   }
   # read from device
   method read {} {
