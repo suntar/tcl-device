@@ -22,38 +22,41 @@ itcl::class gpib_prologix {
     set pp [split $pars ":"]
     set host      [lindex $pp 0]
     set gpib_addr [lindex $pp 1]
-  }
-  # set address before any operation
-  method set_addr {dev} {
-    puts $dev "++addr"
+    # try to open gpib and poll the device
+    set dev [open_]
+    puts $dev "++spoll"
     set a [gets_timeout $dev $timeout]
-    if { $a != $gpib_addr } {
-      puts $dev "++addr $gpib_addr"
-    }
+    if {$a == {}} {error "can't open device: $host:$gpib_addr"}
+    ::close $dev
   }
-  # write to device without reading answer
-  method write {v} {
+
+  # open device and set address if needed
+  method open_ {} {
     set dev [::socket $host 1234]
     ::fconfigure $dev -blocking false -buffering line
-    set_addr $dev
+    puts $dev "++addr"
+    set a [gets_timeout $dev $timeout]
+    if { $a != $gpib_addr } { puts $dev "++addr $gpib_addr" }
+    return $dev
+  }
+
+  # write to device without reading answer
+  method write {v} {
+    set dev [open_]
     ::puts $dev "$v\n"
     ::close $dev
     return
   }
   # read from device
   method read {} {
-    set dev [::socket $host 1234]
-    ::fconfigure $dev -blocking false -buffering line
-    set_addr $dev
+    set dev [open_]
     set ret [gets_timeout $dev $timeout]
     ::close $dev
     return $ret
   }
-  # write and then read
+  # write and then read if command ends in ?
   method cmd {v} {
-    set dev [::socket $host 1234]
-    ::fconfigure $dev -blocking false -buffering line
-    set_addr $dev
+    set dev [open_]
     ::puts $dev "$v\n"
     if [regexp {\?} $v] { set ret [gets_timeout $dev $timeout] }\
     else { set ret ""}

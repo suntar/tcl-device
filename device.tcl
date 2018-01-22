@@ -56,7 +56,7 @@ itcl::class Device {
     set e [catch {set dev [conn_drivers::$drv #auto $pars]} ]
 
     # log
-    do_log "" "Opened by [info script]\n  Driver: $drv\n  Parameters: $pars"
+    do_log "" "Opened by [info script]\n  Driver: $drv\n  Parameters: $pars" $e
 
     if {$e} {error $::errorInfo}
   }
@@ -77,6 +77,7 @@ itcl::class Device {
     do_log "$cmd>>" $args
 
     # run the command
+    set ret {}
     set e [catch {set ret [$dev $cmd $args]}]
 
     # log response (and errors if any)
