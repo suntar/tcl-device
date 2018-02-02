@@ -6,7 +6,7 @@ package require Itcl
 #   -blocking false -buffering line
 # if timeout < 0 wait forever
 
-proc gets_timeout {chan timeout} {
+proc gets_timeout_sync {chan timeout} {
   set inf [expr {$timeout <0}]
 
   set dt 1
@@ -31,7 +31,7 @@ proc gets_timeout {chan timeout} {
 }
 
 ## same but with vwait:
-proc gets_timeout_async {chan timeout} {
+proc gets_timeout {chan timeout} {
   set ::chan_err($chan) 0
   set ::chan_ret($chan) {}
 
