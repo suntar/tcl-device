@@ -91,7 +91,7 @@ itcl::class Device {
   }
 
   method write {args} { do_cmd write {*}$args }
-  method read  {args} { do_cmd read  {*}$args }
+  method read  {}     { do_cmd read }
   method cmd   {args} { do_cmd cmd   {*}$args }
 
   ####################################################################
