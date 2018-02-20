@@ -189,3 +189,16 @@ lockin0          ssh <remote address> device -d lockin0
 graphene_remote  ssh <remote address> graphene -i
 ```
 (ssh access should be configured using keys, ssh-agent etc.)
+
+## vwait problem
+
+There are two places in the library (locks and reading from devices) which can be done
+in syncroneous and asyncronious ways. For simple programs both ways are good; for
+tk interfaces async version is better since id does not lock the interface; in some
+complicated programs a nested vwait call can appear in async version causing a permanent lock.
+
+I do not have a good solution yet, so I just have both versions which can be swiched by
+Device::sync variable (default 0).
+
+
+

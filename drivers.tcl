@@ -63,6 +63,19 @@ itcl::class gpib_prologix {
     ::close $dev
     return $ret
   }
+  method spoll {v} {
+    set dev [open_]
+    ::puts $dev "++spoll\n"
+    set ret [gets_timeout $dev $timeout]
+    ::close $dev
+    return $ret
+  }
+  method clr {v} {
+    set dev [open_]
+    ::puts $dev "++clr\n"
+    ::close $dev
+    return
+  }
 }
 
 ###########################################################

@@ -15,6 +15,9 @@ package require Itcl
 # - high level locking is done by lock/unlock methods to allow user
 #    to grab the device completely for a long time.
 #
+
+namespace eval Device { set sync 0 }
+
 itcl::class Device {
   variable dev;    # device handle
   variable name;   # device name

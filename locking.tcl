@@ -5,7 +5,9 @@
 variable lock_folder "/tmp/tcl_device_locks"
 variable lock_status 0
 
-proc lock {name timeout {only_others 0} {async 0}} {
+proc lock {name timeout {only_others 0}} {
+  set async [expr {$Device::sync==0}]
+
   if {$async} {
     after idle "lock_ $name $timeout $only_others $async"
     vwait ::lock_status
