@@ -19,11 +19,23 @@ proc lock {name timeout {only_others 0}} {
   return
 }
 
-proc lock_ {name timeout only_others async} {
-  # check if lock folder exists:
+# check if lock folder exists, create it if needed:
+proc check_lock_folder {} {
   if { ! [file exists $::lock_folder] } {
+     if {[catch {
+       file mkdir $::lock_folder
+       file attributes $::lock_folder -permissions 0777
+     }]} {
+       error "can't create lock folder: $::lock_folder"
+     }
+  }
+}
+
+proc lock_ {name timeout only_others async} {
+
+  if {[catch check_lock_folder]} {
     if {$async} {set ::lock_status 1}
-    error "lock folder does not exist: $::lock_folder"
+    error "can't create lock folder: $::lock_folder"
   }
 
   # set some parameters
@@ -61,12 +73,9 @@ proc lock_ {name timeout only_others async} {
 
 
 proc unlock {name} {
-  if { ! [file exists $::lock_folder] } {
-    error "lock folder does not exist: $::lock_folder"
-  }
+  check_lock_folder
   if {[catch { file delete "$::lock_folder/$name" }]} {
-    error "error unlocking $name"
-  }
+    error "error unlocking $name" }
 }
 
 # Try to find who grabbed the lock
@@ -85,9 +94,7 @@ proc unlock {name} {
 proc lock_check {name {only_others 0} {lock_error 1}} {
 
   # check if lock folder exists:
-  if { ! [file exists $::lock_folder] } {
-    error "lock folder does not exist: $::lock_folder"
-  }
+  check_lock_folder
   set fname "$::lock_folder/$name"; #lock file name
 
   set p {}; # pid
