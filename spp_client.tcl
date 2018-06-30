@@ -11,7 +11,7 @@ itcl::class spp_client {
   variable conn
   variable ch
   variable ver
-  variable open_timeout 5000
+  variable open_timeout 10000
   variable read_timeout -1
 
   constructor {prog_name} {
