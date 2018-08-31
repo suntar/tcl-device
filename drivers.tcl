@@ -211,4 +211,57 @@ itcl::class tenma_ps {
 }
 ###########################################################
 
+###########################################################
+# Agilent VS leak detector.
+# paramter: serial device name
+# Use null-modem cable/adapter!
+itcl::class leak_ag_vs {
+  variable dev
+  variable del;     # read/write delay
+  variable bufsize; # read buffer size
+
+  # open device
+  constructor {pars} {
+    set dev [::open $pars r+]
+    fconfigure $dev -blocking true -translation cr\
+                    -mode 9600,n,8,1 -handshake none -timeout 500\
+  }
+  # close device
+  destructor {
+    ::close $dev
+  }
+
+  # write to device without reading answer
+  method write {v} {
+    cmd $v
+  }
+  # read from device
+  method read {} {
+  }
+  # write and then read
+  method cmd {v} {
+    ::puts $dev $v
+    ::flush $dev
+    # read char by char until "ok" or "#?"
+    set l {}
+    while {1} {
+      set c [::read $dev 1]
+      if {$c == ""} {error "leak_ag_vs driver: read timeout"}
+      lappend l $c
+      set status [join [lrange $l end-1 end] ""]
+      if {$status == "ok" || $status == "#?"} break;
+    }
+    if {$status == "#?"} {error "leak_ag_vs driver: bad command: $v"}
+
+    set res [join [lrange $l 0 end-2] ""]
+    # extract echo
+    set n [string first $v $res]
+    if {$n<0} {error "leak_ag_vs driver: echo problem"}
+    set n [expr $n+[string length $v]]
+    return [string range $res $n end]
+  }
+}
+###########################################################
+
+
 }; #namespace
