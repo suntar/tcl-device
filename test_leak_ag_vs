@@ -1,0 +1,48 @@
+#!/usr/bin/tclsh
+
+source ./spp_client.tcl
+source ./spp_server.tcl
+source ./device.tcl
+source ./drivers.tcl
+source ./chan.tcl
+source ./locking.tcl
+
+Device leak_ag_vs
+puts "IDN:       [leak_ag_vs cmd "*IDN?"]"
+puts "ALL:       [leak_ag_vs cmd "?ALL"]"
+puts "AZ<0:      [leak_ag_vs cmd "?AZ<0"]"
+puts "CALOK:     [leak_ag_vs cmd "?CALOK"]"
+#puts "CALINTOK: [leak_ag_vs cmd "?CALINTOK"]"
+puts "CPLOCKOUT: [leak_ag_vs cmd "?CPLOCKOUT"]"
+puts "CURRDATE:  [leak_ag_vs cmd "?CURRDATE"]"
+puts "DISPLAY:   [leak_ag_vs cmd "?DISPLAY"]"
+puts "EMISSION:  [leak_ag_vs cmd "?EMISSION"]"
+puts "EXPONENT:  [leak_ag_vs cmd "?EXPONENT"]"
+puts "EXTLEAK:   [leak_ag_vs cmd "?EXTLEAK"]"
+puts "FIL1HOURS: [leak_ag_vs cmd "?FIL1HOURS"]"
+puts "FIL2HOURS: [leak_ag_vs cmd "?FIL2HOURS"]"
+puts "GAIN:      [leak_ag_vs cmd "?GAIN"]"
+#puts "INTERNAL-TYPE:  [leak_ag_vs cmd "?INTERNAL-TYPE"]"
+puts "INTEXT:    [leak_ag_vs cmd "?INTEXT"]"
+#puts "I/O_BOARD: [leak_ag_vs cmd "?I/O_BOARD"]"
+puts "IONCHAMBER: [leak_ag_vs cmd "?IONCHAMBER"]"
+#puts "I/O_VER:   [leak_ag_vs cmd "?I/O_VER"]"
+puts "LANGUAGE:  [leak_ag_vs cmd "?LANGUAGE"]"
+puts "LEAK:      [leak_ag_vs cmd "?LEAK"]"
+puts "LKEXPIRE:  [leak_ag_vs cmd "?LKEXPIRE"]"
+puts "LEAKTEMP:  [leak_ag_vs cmd "?LEAKTEMP"]"
+puts "LP:        [leak_ag_vs cmd "?LP"]"
+puts "LPV:       [leak_ag_vs cmd "?LPV"]"
+puts "LPVR:      [leak_ag_vs cmd "?LPVR"]"
+puts "LPVRM:     [leak_ag_vs cmd "?LPVRM"]"
+puts "LPVRJG:    [leak_ag_vs cmd "?LPVRJG"]"
+puts "LPVRJGC:   [leak_ag_vs cmd "?LPVRJGC"]"
+puts "LPVRJGCTbTpV:   [leak_ag_vs cmd "?LPVRJGCTbTpV"]"
+#puts "NOLOCAL-VMAXOUT:   [leak_ag_vs cmd "?NOLOCAL-VMAXOUT"]"
+puts "OFFSET:    [leak_ag_vs cmd "?OFFSET"]"
+puts "PREHEAT:      [leak_ag_vs cmd "?PREHEAT"]"
+puts "PREHEAT-TIME: [leak_ag_vs cmd "?PREHEAT-TIME"]"
+puts "PRESSURES:    [leak_ag_vs cmd "?PRESSURES"]"
+puts "PWDONOFF:     [leak_ag_vs cmd "?PWDONOFF"]"
+puts "RANGE:        [leak_ag_vs cmd "?RANGE"]"
+

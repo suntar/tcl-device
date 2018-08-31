@@ -240,8 +240,7 @@ itcl::class leak_ag_vs {
   }
   # write and then read
   method cmd {v} {
-    set v [string toupper $v]
-    if {$v == "*IDN?"} { return "Agilent VS leak detector" }
+    if {[string toupper $v] == "*IDN?"} { return "Agilent VS leak detector" }
     ::puts $dev $v
     ::flush $dev
     # read char by char until "ok" or "#?"
