@@ -224,7 +224,7 @@ itcl::class leak_ag_vs {
   constructor {pars} {
     set dev [::open $pars r+]
     fconfigure $dev -blocking true -translation cr\
-                    -mode 9600,n,8,1 -handshake none -timeout 500\
+                    -mode 9600,n,8,1 -handshake none -timeout 2000\
   }
   # close device
   destructor {
