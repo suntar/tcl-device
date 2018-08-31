@@ -240,6 +240,8 @@ itcl::class leak_ag_vs {
   }
   # write and then read
   method cmd {v} {
+    set v [string toupper $v]
+    if {$v == "*IDN?"} { return "Agilent VS leak detector" }
     ::puts $dev $v
     ::flush $dev
     # read char by char until "ok" or "#?"
@@ -257,7 +259,7 @@ itcl::class leak_ag_vs {
     # extract echo
     set n [string first $v $res]
     if {$n<0} {error "leak_ag_vs driver: echo problem"}
-    set n [expr $n+[string length $v]]
+    set n [expr $n+[string length $v]+1]
     return [string range $res $n end]
   }
 }
