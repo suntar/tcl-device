@@ -43,7 +43,7 @@ namespace eval spp_server {
     regsub -all -line "^$spp_server::ch" $text "$spp_server::ch$spp_server::ch" text
     set res {}
     append res $text
-    puts $res
+    puts [join $res "\n"]
   }
 
   # Read_cmd wrapper:

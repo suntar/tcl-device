@@ -37,7 +37,7 @@ itcl::class spp_client {
   # write command, read response until #OK or #Error line
   method cmd {args} {
     ::puts $conn [join $args " "]
-    read
+    return [read]
   }
 
   # separate commands for reading and writing
@@ -60,7 +60,7 @@ itcl::class spp_client {
       }
       lappend ret $l
     }
-    return $ret
+    return [join $ret "\n"]
   }
 
 }
