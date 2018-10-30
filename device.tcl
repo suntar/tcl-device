@@ -16,13 +16,12 @@ package require Itcl
 #    to grab the device completely for a long time.
 #
 
-namespace eval Device { set sync 0 }
-
 itcl::class Device {
   variable dev;    # device handle
   variable name;   # device name
   variable drv;    # device driver
   variable pars;   # driver parameters
+  public common sync 0; # sync/async version switch
 
   # timeouts
   variable io_lock_timeout 5000; # io locks
