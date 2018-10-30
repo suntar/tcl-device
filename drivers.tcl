@@ -176,13 +176,11 @@ itcl::class spp {
 # parameters: character device (such as /dev/ttyACM0)
 itcl::class tenma_ps {
   variable dev
-  variable del;     # read/write delay
-  variable bufsize; # read buffer size
+  variable del 250; # read/write delay
 
   # open device
   constructor {pars} {
     set dev [::open $pars RDWR]
-    set del 250
     fconfigure $dev -blocking false -translation binary
   }
   # close device
@@ -213,18 +211,17 @@ itcl::class tenma_ps {
 
 ###########################################################
 # Agilent VS leak detector.
-# paramter: serial device name
+# parameter: serial device name
 # Use null-modem cable/adapter!
 itcl::class leak_ag_vs {
   variable dev
-  variable del;     # read/write delay
-  variable bufsize; # read buffer size
+  variable timeout 2000
 
   # open device
   constructor {pars} {
     set dev [::open $pars r+]
     fconfigure $dev -blocking true -translation cr\
-                    -mode 9600,n,8,1 -handshake none -timeout 2000\
+                    -mode 9600,n,8,1 -handshake none -timeout $timeout\
   }
   # close device
   destructor {

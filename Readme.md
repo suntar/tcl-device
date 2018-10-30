@@ -24,7 +24,7 @@ puts [generator cmd "*idn?"]
 ```
 
 Note that library itself does not know anything about commands used by certain
-devices, it just provides connection. For the next layer see DeviceRole library.
+device, it just provides connection. For the next layer see DeviceRole library.
 
 Library provides IO locking (one device can be used by a few programs or
 by severel threads in one program without collisions) and optional
@@ -61,7 +61,7 @@ In case of error a tcl error is called. Use catch to process it.
 
 * usbtcm -- devices controlled by usbtcm driver
 
-  Parameters: character device (such as /dev/usctcm0).
+  Parameters: character device (such as `/dev/usctcm0`).
 
 * gpib -- Connection with linux-gpib library.
 
@@ -85,7 +85,12 @@ In case of error a tcl error is called. Use catch to process it.
 * tenma_ps -- Tenma power supply. It is a serial port connection,
   but with specific delays and without newline characters.
 
-  Parameters: character device (such as /dev/ttyACM0).
+  Parameters: character device (such as `/dev/ttyACM0`).
+
+* leak_ag_vs -- Agilent VS leak detector. Use null-modem cable/adapter!
+
+  Parameter: character device name
+
 
 
 ## Simple pipe protocol (SPP)
