@@ -41,9 +41,7 @@ namespace eval spp_server {
   proc answer {text} {
     if {$text eq {}} { return }
     regsub -all -line "^$spp_server::ch" $text "$spp_server::ch$spp_server::ch" text
-    set res {}
-    append res $text
-    puts [join $res "\n"]
+    puts $text
   }
 
   # Read_cmd wrapper:
