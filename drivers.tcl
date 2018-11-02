@@ -238,8 +238,15 @@ itcl::class leak_ag_vs {
   # write and then read
   method cmd {v} {
     if {[string toupper $v] == "*IDN?"} { return "Agilent VS leak detector" }
+    # read all data if any
+    fconfigure $dev -blocking false
+    ::read $dev
+    fconfigure $dev -blocking true
+
+    #write the command
     ::puts $dev $v
     ::flush $dev
+
     # read char by char until "ok" or "#?"
     set l {}
     while {1} {
@@ -251,8 +258,10 @@ itcl::class leak_ag_vs {
     }
     if {$status == "#?"} {error "leak_ag_vs driver: bad command: $v"}
 
+    # remove the "ok" suffix
     set res [join [lrange $l 0 end-2] ""]
-    # extract echo
+
+    # find and remove echo
     set n [string first $v $res]
     if {$n<0} {error "leak_ag_vs driver: echo problem"}
     set n [expr $n+[string length $v]+1]
