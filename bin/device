@@ -51,7 +51,7 @@ if {$dev  == {} } { error "Use -dev option to specify the device" }
 Device $dev
 
 if { $cmd!={} } {
-  puts [$dev cmd $cmd]
+  puts [join [$dev cmd $cmd] "\n"]
   exit
 }
 
