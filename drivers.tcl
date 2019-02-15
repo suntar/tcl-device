@@ -112,11 +112,48 @@ itcl::class usbtcm {
 }
 
 ###########################################################
+# Serial device.
+# Works with old RS-232 SCPI devices such as Keysight/HP 34401.
+# Device confiduration is needed: RS-232 9600 8N.
+# parameters: character device
+#
+# timeout is set inside usbtcm driver
+itcl::class serial {
+  variable dev
+  variable timeout 30000
+
+  # open device
+  constructor {pars} {
+    set dev [::open $pars w+]
+    fconfigure $dev -blocking true -translation auto -buffering line -handshake xonxoff\
+                    -mode 9600,n,8,1 -timeout $timeout\
+  }
+  # close device
+  destructor {
+    ::close $dev
+  }
+  # write to device without reading answer
+  method write {v} {
+    ::puts $dev $v
+  }
+  # read from device
+  method read {} {
+    return [::gets $dev]
+  }
+  # write and then read
+  method cmd {v} {
+    ::puts $dev $v
+    if [regexp {\?} $v] { return [::gets $dev] }\
+    else {return ""}
+  }
+}
+
+###########################################################
 # LXI device connected via ethernet. SCPI raw connection via port 5025
 # parameters: <host>
 itcl::class lxi_scpi_raw {
   variable dev
-  variable timeout 30000
+  variable timeout 2000
 
   # open device
   constructor {pars} {
@@ -238,15 +275,8 @@ itcl::class leak_ag_vs {
   # write and then read
   method cmd {v} {
     if {[string toupper $v] == "*IDN?"} { return "Agilent VS leak detector" }
-    # read all data if any
-    fconfigure $dev -blocking false
-    ::read $dev
-    fconfigure $dev -blocking true
-
-    #write the command
     ::puts $dev $v
     ::flush $dev
-
     # read char by char until "ok" or "#?"
     set l {}
     while {1} {
@@ -258,10 +288,8 @@ itcl::class leak_ag_vs {
     }
     if {$status == "#?"} {error "leak_ag_vs driver: bad command: $v"}
 
-    # remove the "ok" suffix
     set res [join [lrange $l 0 end-2] ""]
-
-    # find and remove echo
+    # extract echo
     set n [string first $v $res]
     if {$n<0} {error "leak_ag_vs driver: echo problem"}
     set n [expr $n+[string length $v]+1]
