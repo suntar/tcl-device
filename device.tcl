@@ -5,6 +5,7 @@ package require Itcl
 # Usage:
 #  Device lockin0
 #  lockin0 cmd *IDN?
+#  DeviceDelete lockin0
 #
 # Information about devices read from devices.txt file:
 # name driver parameters
@@ -115,4 +116,11 @@ itcl::class Device {
   method unlock {} {
     ::unlock $name
   }
+}
+
+proc DeviceDelete {name} {
+  if {[lindex [$name info heritage] end] != {::Device}} {
+    error "Not a Device object: $name"
+  }
+  itcl::delete object $name
 }

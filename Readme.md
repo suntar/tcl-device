@@ -21,6 +21,7 @@ Then one can do something like this:
 package require Device
 Device generator
 puts [generator cmd "*idn?"]
+DeviceDelete generator
 ```
 
 Note that library itself does not know anything about commands used by certain
@@ -39,6 +40,7 @@ without restarting and modifing programs.
 ---
 
 * Device <name> -- open a device <name>. The command <name> is created to access the device.
+* DeviceDelete <name> -- closes a device <name>.
 * <name> cmd  -- Send a command and get answer
 * <name> lock -- High-level lock. Lock lasts until the process is alive or until unlock
                  command is run. If device is locked, other communications with this
