@@ -241,7 +241,15 @@ itcl::class tenma_ps {
     puts -nonewline $dev $cmd
     flush $dev
     after $del
-    return [::read $dev]
+    set ret [::read $dev]
+    # Translate status to a number.
+    # (currently there is a problem sending bynary data through ssh/device)
+    if {$cmd == {STATUS?}} {
+      set tmp $ret
+      set $ret 0
+      binary scan $tmp cu ret
+    }
+    return $ret
   }
 }
 ###########################################################
