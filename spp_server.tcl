@@ -28,7 +28,7 @@ namespace eval spp_server {
   proc _print_err {} {
     set e $::errorInfo
     set n [string first "\n" $e]
-    if {n>0} { set e [string range $e 0 [expr $n-1]]}
+    if {$n>0} { set e [string range $e 0 [expr $n-1]]}
     puts "${spp_server::ch}Error: $e"
   }
   # Print OK line
