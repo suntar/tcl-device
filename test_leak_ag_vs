@@ -7,7 +7,7 @@ source ./drivers.tcl
 source ./chan.tcl
 source ./locking.tcl
 
-Device leak_ag_vs
+Device leak_ag
 
 ## Commands from the manual which do not work:
 # ?CALINTOK ?INTERNAL-TYPE {?I/O BOARD} ?I/O_VER ?NOLOCAL-VMAXOUT
@@ -26,5 +26,5 @@ foreach c {*IDN? ?ALL ?AZ<0 ?CALOK ?CPLOCKOUT ?CURRDATE\
            ?STDLEAK ?SYSPWD\
            ?TURBO ?TURBOHR ?VALVESTATE VER ?VOLUMEONOFF\
            WHYNOCAL ?0ENABLE SERVICE1 SERVICE2} {
-puts "$c: [leak_ag_vs cmd "$c"]"
+puts "$c: [leak_ag cmd "$c"]"
 }

@@ -19,8 +19,7 @@ tcl_device -- Device library
 %prep
 %setup -q
 
-%build
-# build and install tcl packages
+%install
 mkdir -p %buildroot/%_tcldatadir/%teaname
 install -m644 *.tcl %buildroot/%_tcldatadir/%teaname
 
