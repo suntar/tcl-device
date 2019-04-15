@@ -118,9 +118,15 @@ itcl::class Device {
   }
 }
 
+# Check if <name> is a Device object
+proc DeviceExists {name} {
+  if {[catch {set base [lindex [$name info heritage] end]} ]} { return 0 }
+  return [expr {$base == {::Device}}]
+}
+
+# Delete device object <name>
 proc DeviceDelete {name} {
-  if {[lindex [$name info heritage] end] != {::Device}} {
-    error "Not a Device object: $name"
-  }
+  if {![DeviceExists $name]} { error "Can't close non-existing Device: $name" }
   itcl::delete object $name
 }
+

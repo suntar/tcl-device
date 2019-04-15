@@ -36,11 +36,12 @@ Library provides logging of all device communications: if there is a file
 <name> is appended to this file. This allows to start/stop logging
 without restarting and modifing programs.
 
-## Interface (see `Device/device.tcl`)
+## Interface (see `device.tcl`)
 ---
 
 * Device <name> -- open a device <name>. The command <name> is created to access the device.
-* DeviceDelete <name> -- closes a device <name>.
+* DeviceDelete <name> -- close a device <name>.
+* DeviceExists <name> -- return true if Device is opened.
 * <name> cmd  -- Send a command and get answer
 * <name> lock -- High-level lock. Lock lasts until the process is alive or until unlock
                  command is run. If device is locked, other communications with this
@@ -50,7 +51,7 @@ without restarting and modifing programs.
 In case of error a tcl error is called. Use catch to process it.
 
 
-## Drivers (see `Device/drivers.tcl`)
+## Drivers (see `drivers.tcl`)
 ---
 
 * gpib_prologix -- GPIB device connected through Prologix gpib2eth converter.
@@ -157,7 +158,7 @@ abc
 #OK
 ```
 
-## TCL interface (see `Device/spp_client.tcl`, `Device/spp_server.tcl`, `Device/spp_server_async.tcl`)
+## TCL interface (see `spp_client.tcl`, `spp_server.tcl`, `spp_server_async.tcl`)
 
 There is a simple tcl library to implement the protocol. To write the
 server create an Itcl class with all needed commands (each gets any
@@ -173,7 +174,7 @@ To create a connection to a server:
 and run commands
   conn cmd <command>
 
-See `Device/spp_server_test.tcl` and `Device/spp_client_test.tcl` programs.
+See `spp_server_test.tcl` and `spp_client_test.tcl` programs.
 
 
 ## SPP programs which can be used as devices:
