@@ -118,6 +118,9 @@ itcl::class Device {
   }
 }
 
+# If device was created in a namespace, use [namespace current]::$name
+# in DeviceExists and DeviceDelete argumants!
+
 # Check if <name> is a Device object
 proc DeviceExists {name} {
   if {[catch {set base [lindex [$name info heritage] end]} ]} { return 0 }
