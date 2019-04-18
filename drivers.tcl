@@ -189,7 +189,9 @@ itcl::class gpib {
   variable dev
   constructor {pars} {
     package require GpibLib
-    set dev [gpib_device #auto {*}$pars]
+    # Previously I used #auto here, but
+    # updated tcl-gpib start creating #auto command
+    set dev [gpib_device $this:dev {*}$pars]
   }
   destructor { gpib_device delete $dev }
   method write {v} { $dev write $v }
