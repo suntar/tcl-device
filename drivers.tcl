@@ -306,6 +306,75 @@ itcl::class leak_ag_vs {
     return [string range $res $n end]
   }
 }
+
+###########################################################
+# Use pico_rec/pico_osc programs as serial devices
+# parameter: pseudo terminal name
+# example:   osc1v  pico /dev/osc1
+itcl::class pico {
+  variable dev
+  variable pts
+  variable timeout 2000
+
+  # open device
+  constructor {pars} {
+    set pts $pars
+    clr
+  }
+  # close device
+  destructor {
+  }
+
+  # write to device without reading answer
+  method write {v} {
+    cmd $v
+  }
+  # read from device
+  method read {} {
+  }
+  # write and then read
+  method cmd {v} {
+    set dev [::open $pts r+]
+
+    set opt_timeout "-timeout $timeout"
+    # timeout doesn't work with 'wait' command
+    if { $v == "wait" } { set opt_timeout "" }
+
+    fconfigure $dev -blocking true -buffering line {*}$opt_timeout
+
+    if {[catch {::puts "$dev" "$v";::flush $dev} err]} {
+      error "pico driver: bad command: $v"
+    }
+    set res {}
+    # read string by string until "#OK" or "#Error:"
+    while {1} {
+      set l ""
+      # read string: char by char until "\n"
+      while {1} {
+        set c [::read $dev 1]
+        if {$c == ""} {error "pico driver: read timeout"}
+        if {$c == "\n"} break;
+        append l $c
+      }
+      set status [string range $l 0 2]
+      if {$status == "#OK" || $status == "#Er"} break;
+      lappend res $l
+    }
+    if {$status == "#Er"} {
+      set err [string range $l 8 end]
+      error "pico driver: $err"
+    }
+    ::close $dev
+    return $res
+  }
+
+  method clr {} {
+    set dev [::open $pts r+]
+    fconfigure $dev -blocking true -buffering line -timeout $timeout
+    ::read $dev
+    ::close $dev
+  }
+}
 ###########################################################
 
 

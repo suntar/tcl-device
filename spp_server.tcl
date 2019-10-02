@@ -41,7 +41,7 @@ namespace eval spp_server {
   proc answer {text} {
     if {$text eq {}} { return }
     regsub -all -line "^$spp_server::ch" $text "$spp_server::ch$spp_server::ch" text
-    puts [join $text "\n"]
+    foreach t $text { puts $t}
   }
 
   # Read_cmd wrapper:
