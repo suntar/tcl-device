@@ -153,7 +153,7 @@ itcl::class serial {
 # parameters: <host>
 itcl::class lxi_scpi_raw {
   variable dev
-  variable timeout 2000
+  variable timeout 30000
 
   # open device
   constructor {pars} {
@@ -262,7 +262,7 @@ itcl::class tenma_ps {
 # Use null-modem cable/adapter!
 itcl::class leak_ag_vs {
   variable dev
-  variable timeout 2000
+  variable timeout 30000
 
   # open device
   constructor {pars} {
@@ -314,7 +314,7 @@ itcl::class leak_ag_vs {
 itcl::class pico {
   variable dev
   variable pts
-  variable timeout 2000
+  variable timeout 30000
 
   # open device
   constructor {pars} {
