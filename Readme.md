@@ -1,6 +1,8 @@
 ## Device library
 ---
 
+#### Now I'm using device2 instead: https://github.com/slazav/device2
+
 This is a tcl library for making complicated experimental setups.
 
 All operations are done using "devices". They can be physical devices
