@@ -307,6 +307,108 @@ itcl::class leak_ag_vs {
   }
 }
 
+
+###########################################################
+# Pfeiffer HLT 260 leak detector
+# parameter: serial device name
+# reads commands as hex codes and sends binary data to the device
+# usage: "hex <cmd_name> <cmd_pars>"
+# where both `cmd_name` and `cmd_pars` are hexadecimal codes (see manual)
+# `cmd_name` examples:
+#   13 -- start measure
+#   00 -- stop measure
+#   02 -- get leak rate
+# `cmd_pars` is optional
+# output is also a hex code
+# some commands are also available in human-friendly mode
+itcl::class leak_pf_vs {
+  variable dev
+  variable timeout 2000
+
+  # open device
+  constructor {pars} {
+    set dev [::open $pars r+]
+    fconfigure $dev -blocking true -translation  binary\
+                    -mode 9600,n,8,1 -handshake none -timeout $timeout
+  }
+  # close device
+  destructor {
+    ::close $dev
+  }
+
+  # write to device without reading answer
+  method write {v} {
+    cmd $v
+  }
+  # read from device
+  method read {} {
+    return [::gets $dev]
+  }
+  # write and then read
+  method cmd {v} {
+    set v_up [string toupper $v]
+    if { $v_up == "*IDN?"} { return "Pfeiffer HLT 260 leak detector" }
+
+    set cmd_n ""
+    set cmd_pars ""
+
+    if {$v_up == "START"} { set cmd_n "13" }
+    if {$v_up == "STOP"}  { set cmd_n "00" }
+    if {$v_up == "LEAK?"} { set cmd_n "02" }
+    if {$v_up == "GET_MASS_TYPE"} { set cmd_n "69" }
+    if {[lindex $v_up 0] == "SET_MASS_TYPE"} {
+      set cmd_n "68"
+      set mt [lindex $v 1]
+      set mt_up [string toupper $mt]
+      if { $mt_up == "HE4" } { set cmd_pars "03"} \
+      elseif { $mt_up == "HE3" } { set cmd_pars "02"} \
+      elseif { $mt_up == "H2" }  { set cmd_pars "01"} \
+      else {error "bad mass type parameter: '$mt'"}
+    }
+    if {[lindex $v_up 0] == "HEX"} {
+      set cmd_n    [lindex $v 1]
+      set cmd_pars [lindex $v 2]
+      if {[string length $cmd_n] == 1 } { set cmd_n "0$cmd_n" } \
+        elseif { [string length $cmd_n] != 2} { error "bad hex command: '$cmd_n'"}
+      set cmd_pars_len [string length $cmd_pars]
+      if { [expr $cmd_pars_len % 2] == 1  } { error "parameters hex string should be even: '$cmd_pars'" }
+    }
+    if {"$cmd_n" == "" } {error "bad command: '$v'"}
+
+    set cmd_bin [binary format H2H* 05 "$cmd_n$cmd_pars"]
+    ::puts -nonewline  $dev $cmd_bin
+    flush $dev
+    after 250
+    set res_bin [::read $dev]
+    binary scan $res_bin  H* res_h
+    set res_check [string range $res_h 0 1]
+    set res_hstr [string range $res_h 2 end]
+    if {$res_check == "ff"} { error "Negative acknowlegement of the command '$cmd_n': ff"}
+    if {$res_check != [string tolower $cmd_n]} { error "Acknowlegement code of the command '$res_check' differs from the command '$cmd_n'"}
+
+    # format result for non-hex commands
+    if {$v_up == "LEAK?"} {
+      binary scan $res_bin  H2B32H2H2H2  n leak_binrepr limit setpoint zero
+      set b1 [string range $leak_binrepr 0 0]
+      set b2 [string range $leak_binrepr 1 8]
+      set b3 [string range $leak_binrepr 9 end]
+      set sign [expr "$b1" == "0" ? 1 : -1]
+      set exp  [expr "0b$b2"]
+      set mant [expr "0b$b3"]
+      set leak [format "%e" [expr $sign*pow(2.0,$exp-127)*(1.0+$mant/8388608.0)] ]
+      return "$leak"
+    }
+    if {$v_up == "GET_MASS_TYPE"} {
+      if {$res_hstr == "01"} { return "H2" }
+      if {$res_hstr == "02"} { return "He3" }
+      if {$res_hstr == "03"} { return "He4" }
+    }
+
+    # return hex output for hex commands
+    return $res_hstr
+  }
+}
+
 ###########################################################
 # Use pico_rec/pico_osc programs as serial devices
 # parameter: pseudo terminal name
